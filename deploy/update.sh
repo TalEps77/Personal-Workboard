@@ -25,6 +25,7 @@
 #   KEEP_IMAGES    old images to keep for rollback (default 3)
 set -uo pipefail
 [ -n "${1:-}" ] && [ -f "$1" ] && . "$1"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_DIR=${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}
 : "${INSTANCE_DIR:?set INSTANCE_DIR (directory with .env and data/)}"
 BRANCH=${BRANCH:-main}
@@ -49,11 +50,10 @@ warn() {
 }
 clear_warn() { rm -f "$INSTANCE_DIR/.warn-$1"; }
 envval() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//; s/^"//; s/"$//'; }
-compose() {
-  local files=(-f compose.yml)
-  [ -f "$INSTANCE_DIR/compose.override.yml" ] && files+=(-f "$INSTANCE_DIR/compose.override.yml")
-  docker compose -p workboard "${files[@]}" --env-file "$ENV_FILE" "$@"
-}
+COMPOSE=(docker compose -p workboard -f compose.yml)
+[ -f "$INSTANCE_DIR/compose.override.yml" ] && COMPOSE+=(-f "$INSTANCE_DIR/compose.override.yml")
+COMPOSE+=(--env-file "$ENV_FILE")
+compose() { "${COMPOSE[@]}" "$@"; }
 PORT=$(envval WORKBOARD_PORT); PORT=${PORT:-3000}
 BIND=$(envval WORKBOARD_BIND); BIND=${BIND:-127.0.0.1}; [ "$BIND" = "0.0.0.0" ] && BIND=127.0.0.1
 healthy() {
@@ -74,7 +74,7 @@ CURRENT=$(cat "$LAST" 2>/dev/null || true)
 SHORT=${TARGET:0:12}
 # A commit that already failed here is not retried every few minutes.
 [ "$(cat "$INSTANCE_DIR/.failed-sha" 2>/dev/null)" = "$TARGET" ] && [ "$FORCE" != "1" ] && exit 0
-case "$REPO_DIR/" in "$(cd "$(dirname "$0")" && pwd)/"*) warn pinned "update.sh runs from inside the checkout — run a pinned copy instead (see the header)";; esac
+case "$SCRIPT_DIR/" in "$REPO_DIR/"*) warn pinned "update.sh runs from inside the checkout — run a pinned copy instead (see the header)";; esac
 
 # 2. Fast-forward only: a rewritten branch is never deployed automatically.
 if [ -n "$CURRENT" ] && ! git merge-base --is-ancestor "$CURRENT" "$TARGET" 2>/dev/null; then
@@ -132,7 +132,8 @@ clear_warn tests
 
 # 5. Build and start; roll back if it doesn't come up healthy.
 log "deploying $SHORT (was ${CURRENT:0:12})"
-if WORKBOARD_IMAGE="workboard:$SHORT" timeout 900 compose up -d --build --remove-orphans >>"$LOG" 2>&1 && healthy; then
+# (timeout needs a real command, not a shell function: call docker compose through the array.)
+if WORKBOARD_IMAGE="workboard:$SHORT" timeout 900 "${COMPOSE[@]}" up -d --build --remove-orphans >>"$LOG" 2>&1 && healthy; then
   echo "$TARGET" > "$LAST"
   log "deployed $SHORT"
   # Keep a few previous images for rollback.
