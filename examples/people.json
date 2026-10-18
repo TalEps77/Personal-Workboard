@@ -1,0 +1,15 @@
+{
+  "users": [
+    { "id": "alex", "name": "אלכס", "gender": "m", "agent": "Hermes", "agentActor": "hermes" },
+    { "id": "sam", "name": "סם", "gender": "f", "agent": "Nova", "agentActor": "nova" }
+  ],
+  "spaces": [
+    { "id": "work", "label": "עבודה", "owner": "alex", "kind": "work" },
+    { "id": "alex-life", "label": "אישי", "owner": "alex", "kind": "personal" },
+    { "id": "home", "label": "בית", "kind": "home", "members": ["alex", "sam"] },
+    { "id": "sam-work", "label": "עבודה", "owner": "sam", "kind": "work" },
+    { "id": "sam-life", "label": "אישי", "owner": "sam", "kind": "personal" }
+  ],
+  "defaultUser": "alex",
+  "defaultSpace": "work"
+}

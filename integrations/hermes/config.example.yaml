@@ -1,0 +1,41 @@
+# Fragments for Hermes' config.yaml. Merge them into your existing file, then restart Hermes
+# (it lists MCP tools and loads webhook routes at startup).
+# Walkthrough: docs/hermes.md
+
+# ── 1. Workboard's tools (agent -> Workboard) ───────────────────────────────────────────────
+mcp_servers:
+  workboard:
+    url: http://workboard:3000/mcp            # host name = the Workboard container on the shared Docker network
+    headers:
+      Authorization: "Bearer ${WORKBOARD_TOKEN}"   # WORKBOARD_TOKEN lives in Hermes' own .env, not here
+    # The agent sees the tools as mcp_workboard_board, mcp_workboard_find_tasks, ...
+
+platforms:
+  # ── 2. Delivery (Workboard -> WhatsApp) ───────────────────────────────────────────────────
+  webhook:
+    enabled: true
+    extra:
+      host: 0.0.0.0                            # reachable from the Workboard container only (do not publish the port)
+      port: 8644
+      routes:
+        workboard:                             # => POST http://hermes:8644/webhooks/workboard
+          secret: "<same value as WORKBOARD_WEBHOOK_SECRET in Workboard's .env>"
+          deliver_only: true                   # send the text as-is; no LLM turn, no cost
+          deliver: whatsapp                    # to the agent's WhatsApp home channel (its owner)
+          prompt: '{message}'                  # the webhook body field that holds the text
+
+# ── 3. WhatsApp behaviour in groups (optional; a top-level section, verified with Hermes' config loader) ──
+whatsapp:
+  unauthorized_dm_behavior: ignore             # strangers get no reply
+  require_mention: true                        # in groups, answer only when addressed
+  mention_patterns:                            # words/regexes that count as addressing this agent
+    - Hermes
+    - hermes
+    - הרמס
+
+# ── Hermes' .env (not config.yaml) ──────────────────────────────────────────────────────────
+#   WORKBOARD_TOKEN=<the token from WORKBOARD_AGENT_TOKENS for this agent>
+#   WHATSAPP_ALLOWED_USERS=<owner's phone number, digits only>   # only the owner may talk to this agent
+#
+# If a second agent shares the WhatsApp number (two people), give each its own Hermes instance with its own
+# config, .env, token, webhook port/secret and credential files (see docs/hermes.md, "Multiple people").

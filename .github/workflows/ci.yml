@@ -1,0 +1,57 @@
+# Every push and pull request. The deploy script on self-hosted instances only deploys commits whose checks are green.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm run check
+      - run: npm run docs:check
+      - run: npm test
+
+  browser:
+    name: Browser tests (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # Playwright lives outside the repository (the app has zero dependencies).
+      - name: Install Playwright
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y >/dev/null && npm install --no-save playwright@1.64.0
+          PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/pw/browsers" npx playwright install --with-deps chromium
+      - name: Single-user suite
+        run: tests/browser/run.sh
+        env: { PW_DIR: "${{ runner.temp }}/pw" }
+      - name: Two-person suite
+        run: tests/browser/run.sh
+        env: { PW_DIR: "${{ runner.temp }}/pw", SUITE: spaces }
+      - name: No iOS zoom triggers
+        run: tests/browser/run.sh
+        env: { PW_DIR: "${{ runner.temp }}/pw", SUITE: zoom }

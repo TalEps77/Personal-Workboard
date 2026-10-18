@@ -1,0 +1,13 @@
+# Copy to ~/.config/systemd/user/ (or /etc/systemd/system/ with User=), then:
+#   systemctl --user daemon-reload && systemctl --user enable --now workboard-update.timer
+# It runs a PINNED copy of update.sh (install -D deploy/update.sh ~/workboard-instance/bin/update.sh), so a new
+# commit can never change the code that decides whether to deploy it.
+[Unit]
+Description=Workboard: pull a green commit from GitHub and deploy it
+
+[Service]
+Type=oneshot
+# Set to your instance directory and this checkout.
+Environment=INSTANCE_DIR=%h/workboard-instance
+Environment=REPO_DIR=%h/personal-workboard
+ExecStart=/usr/bin/env bash %h/workboard-instance/bin/update.sh

@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workboard — Design System</title>
+<meta name="description" content="Workboard design system: tokens, components and rules, written to be read by people and by models.">
+<!--
+  ============================================================================================================
+  FOR MODELS — READ THIS FIRST
+  This single file is the complete style reference of "Workboard" (a Hebrew, RTL, iPhone-first PWA task board).
+  How to use it to restyle another site:
+    1. Take the tokens from the JSON script block with id "design-tokens" (machine-readable, light + dark).
+    2. Copy the CSS of the style block with id "ds-css" (TOKENS, BASE, COMPONENTS; skip "THIS PAGE ONLY") — production CSS, trimmed.
+    3. Follow the rules in section #rules (also in the JSON, key "rules"). They matter more than any single value.
+    4. Each specimen in the main element is real markup with the real class names: copy the HTML structure, not screenshots.
+  Everything is written with CSS logical properties (inline-start / block-end), so it works in RTL and LTR as is.
+  ============================================================================================================
+-->
+<script type="application/json" id="design-tokens">
+{
+  "name": "Workboard",
+  "basis": "Apple Human Interface Guidelines (iOS grouped lists, system type scale, semantic colors), Hebrew RTL-first",
+  "direction": "rtl",
+  "font": {
+    "stack": "-apple-system, BlinkMacSystemFont, 'SF Hebrew', 'Heebo', system-ui, 'Segoe UI', 'Noto Sans Hebrew', Arial, sans-serif",
+    "webfontFallback": "Heebo variable (100–900), self-hosted woff2, split by unicode-range (Hebrew / Latin)",
+    "rootSize": "100% (16px); on touch devices `font: -apple-system-body` so Dynamic Type scales everything (all sizes in rem)",
+    "lineHeight": { "body": 1.45, "titles": 1.15, "rowTitle": 1.35 },
+    "numbers": "font-variant-numeric: tabular-nums for counts, times, dates"
+  },
+  "typeScale": {
+    "large":    { "rem": 2.125,  "px": 34, "weight": 700, "tracking": "-0.02em", "use": "screen title (large title)" },
+    "title1":   { "rem": 1.75,   "px": 28, "weight": 700, "use": "pairing title, big numbers" },
+    "title2":   { "rem": 1.375,  "px": 22, "weight": 700, "use": "section titles in sheets" },
+    "title3":   { "rem": 1.25,   "px": 20, "weight": 600, "use": "day-card count" },
+    "body":     { "rem": 1,      "px": 16, "weight": 400, "use": "row titles (500), inputs, body text" },
+    "callout":  { "rem": 0.9375, "px": 15, "weight": 600, "use": "buttons, subtitles" },
+    "subhead":  { "rem": 0.875,  "px": 14, "weight": 500, "use": "row meta line, segmented, chips" },
+    "footnote": { "rem": 0.8125, "px": 13, "weight": 600, "use": "group headers, pills, sub-headers" },
+    "caption":  { "rem": 0.75,   "px": 12, "weight": 600, "use": "tab labels, badges" }
+  },
+  "color": {
+    "light": {
+      "bg": "#F2F2F7", "surface": "#FFFFFF", "elevated": "#FFFFFF", "fill": "#E9E9EE", "fill2": "#F2F2F7", "hover": "#F5F5F8",
+      "separator": "#D8D8DE", "separatorStrong": "#C6C6CC",
+      "text": "#1C1C1E", "muted": "#5F5F66", "faint": "#6E6E75",
+      "accent": "#1D4FE0", "accentHover": "#1740B8", "accentTint": "#E4EAFB", "onAccent": "#FFFFFF",
+      "success": "#1E7A36", "successTint": "#E4EFE7", "warn": "#8A5A00", "warnTint": "#F1EBE0", "danger": "#C4001A", "dangerTint": "#F8E0E4",
+      "badge": "#D70015", "glass": "rgb(249 249 251 / 72%)", "glassBorder": "rgb(0 0 0 / 8%)"
+    },
+    "dark": {
+      "bg": "#000000", "surface": "#1C1C1E", "elevated": "#2C2C2E", "fill": "#2C2C2E", "fill2": "#232325", "hover": "#242427",
+      "separator": "#38383A", "separatorStrong": "#48484A",
+      "text": "#F2F2F7", "muted": "#AEAEB4", "faint": "#98989F",
+      "accent": "#6E95FF", "accentHover": "#8EADFF", "accentTint": "#2B3246", "onAccent": "#000000",
+      "success": "#4CD07D", "successTint": "#253C2F", "warn": "#F5C04A", "warnTint": "#433A26", "danger": "#FF6961", "dangerTint": "#452A2A",
+      "badge": "#FF453A", "glass": "rgb(28 28 30 / 72%)", "glassBorder": "rgb(255 255 255 / 9%)"
+    },
+    "contrastRule": "every text color ≥ 4.5:1 on the surface it sits on, in both themes; increase-contrast media query strengthens muted and separators",
+    "namedPalette": {
+      "note": "for statuses / projects / priorities: a text color + its tint background, each pair ≥ 4.5:1",
+      "light": { "gray": ["#5F5F66", "#EDEDF0"], "accent": ["#1D4FE0", "#E4EAFB"], "blue": ["#0B5CAD", "#E1ECF7"], "teal": ["#0B7380", "#E2EEF0"], "green": ["#1E7A36", "#E4EFE7"], "amber": ["#8A5A00", "#F1EBE0"], "orange": ["#B23B00", "#F6E7E0"], "red": ["#C4001A", "#F8E0E4"], "pink": ["#A8215F", "#F5E2EB"], "purple": ["#7B3FA8", "#EFE8F5"] },
+      "dark":  { "gray": ["#AEAEB4", "#2E2E31"], "accent": ["#6E95FF", "#2B3246"], "blue": ["#64AAF5", "#1E3043"], "teal": ["#5AC8D8", "#273B3F"], "green": ["#4CD07D", "#253C2F"], "amber": ["#F5C04A", "#433A26"], "orange": ["#FF9F5A", "#453429"], "red": ["#FF6961", "#452A2A"], "pink": ["#FF8AB8", "#44283A"], "purple": ["#C68BF0", "#3B3044"] }
+    },
+    "contexts": {
+      "note": "The app has modes (contexts). The accent of the whole UI and the hero card follow the context. Content that belongs to a context (a schedule item, a chip) keeps that context's color in every mode.",
+      "work":     { "light": { "accent": "#1D4FE0", "tint": "#E4EAFB" }, "dark": { "accent": "#6E95FF", "tint": "#2B3246" }, "hero": "radial-gradient(120% 140% at 100% 0%, #22D3F5 0%, transparent 55%), linear-gradient(160deg, #1D4FE0 0%, #0A2FD0 60%, #0726B8 100%)" },
+      "personal": { "light": { "accent": "#6B35C9", "tint": "#EFE7FC" }, "dark": { "accent": "#B794FF", "tint": "#2F2645" }, "hero": "linear-gradient(135deg, #8B5CF6 0%, #6B35C9 55%, #4C1D95 100%)" },
+      "home":     { "light": { "accent": "#0A7266", "tint": "#E0F3EF" }, "dark": { "accent": "#4FD1BE", "tint": "#1B3532" }, "hero": "linear-gradient(135deg, #14B8A6 0%, #0A7266 55%, #064E46 100%)" },
+      "all":      { "light": { "accent": "#5856D6", "tint": "#ECEBFB" }, "dark": { "accent": "#7D7AFF", "tint": "#2A2A4A" }, "hero": "multicolour: radial teal + radial violet over linear #1D4FE0→#4338CA→#3730A3 (all contexts at once; never grey — grey reads as disabled)" }
+    }
+  },
+  "radius": { "control": "10px", "segment": "7px (inside a 9px track)", "group": "14px", "card": "22px", "sheetPhone": "20px 20px 0 0", "pill": "99px" },
+  "shadow": { "sm": "0 1px 2px rgb(0 0 0 / 5%)", "md": "0 2px 10px rgb(0 0 0 / 6%)", "lg": "0 20px 60px rgb(0 0 0 / 18%)", "hero": "0 12px 30px -10px <context color at 50–55%>" },
+  "spacing": { "screenPaddingDesktop": "28px", "screenPaddingPhone": "14–16px", "rowPadding": "12px 16px", "groupGap": "24px", "inlineGap": "6–12px" },
+  "touch": { "minTarget": "44px (var --hit)", "phoneChips": "38px", "rowMin": "52px", "storeModeRow": "58px", "fieldsOnPhone": "≥ 16px font (else iOS zooms on focus)", "doubleTapZoom": "html { touch-action: manipulation }" },
+  "motion": {
+    "principle": "apple-motion: purposeful, short, interruptible; springs that inherit finger velocity; reduced-motion → opacity-only",
+    "press": "scale(.96) 80ms ease-out on controls; scale(.88) on check circles",
+    "sheetPhone": "slide up 280ms cubic-bezier(.2,.8,.2,1); drag 1:1, rubber-band upward, dismiss by velocity or projected landing > 40%",
+    "popover": "rise 180ms: translateY(8px) scale(.98) → none",
+    "swipeRows": "1:1 tracking, ~10px hysteresis, flick (≥450px/s) decides, long swipe (>55% width) arms the primary action with a haptic tick",
+    "reducedMotion": "@media (prefers-reduced-motion: reduce) — no animations; only opacity/colour transitions"
+  },
+  "rules": [
+    "RTL-first: use logical properties only (margin-inline-start, inset-inline-end, border-block-start). Never left/right.",
+    "Quiet, system-like grouped lists on a grey background; white rounded groups (14px) with hairline separators.",
+    "Boldness is spent in one place per screen: the gradient hero card. Everything else is neutral.",
+    "One colour means one thing: accent = interactive / current context; green = done; red = overdue or destructive; amber = waiting. Context colours never mean status.",
+    "Status colour is a dot or a tinted pill, not a filled block. Text on tints keeps ≥ 4.5:1.",
+    "Light and dark are designed together (dark uses true black bg, #1C1C1E surfaces, lighter accents).",
+    "Sizes in rem so the system text size scales the UI. Touch targets ≥ 44px.",
+    "Navigation: ≤ 4–5 bottom tabs in a floating glass dock + a round primary action beside it (tabs navigate, never act).",
+    "Sheets for focused tasks: one at a time, grabber, swipe-down to dismiss, a visible close button.",
+    "Destructive actions: undo in a toast instead of a confirmation, unless irreversible.",
+    "Copy: short, direct Hebrew; say what happens ('הסר מהרשימה', not 'אישור'); address the person in their grammatical gender; empty states invite the next action.",
+    "Numbers, times and ids use tabular figures and are isolated with <bdi> inside Hebrew text.",
+    "Icons: 24-grid line icons, 1.8 stroke, round caps/joins, currentColor; decorative ones aria-hidden; icon-only buttons get aria-label."
+  ]
+}
+</script>
+
+<style id="ds-css">
+/* ================================ TOKENS ================================ */
+:root {
+  color-scheme: light dark;
+  --bg: #F2F2F7; --surface: #FFFFFF; --elevated: #FFFFFF; --fill: #E9E9EE; --fill-2: #F2F2F7; --hover: #F5F5F8;
+  --separator: #D8D8DE; --separator-strong: #C6C6CC;
+  --text: #1C1C1E; --muted: #5F5F66; --faint: #6E6E75;
+  --accent: #1D4FE0; --accent-hover: #1740B8; --accent-tint: #E4EAFB; --on-accent: #FFFFFF;
+  --success: #1E7A36; --success-tint: #E4EFE7; --warn: #8A5A00; --warn-tint: #F1EBE0; --danger: #C4001A; --danger-tint: #F8E0E4;
+  --badge: #D70015;
+  --glass: rgb(249 249 251 / 72%); --glass-border: rgb(0 0 0 / 8%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 5%); --shadow: 0 2px 10px rgb(0 0 0 / 6%); --shadow-lg: 0 20px 60px rgb(0 0 0 / 18%);
+  --radius: 10px; --radius-lg: 14px; --radius-xl: 22px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Hebrew', 'Heebo', system-ui, 'Segoe UI', 'Noto Sans Hebrew', Arial, sans-serif;
+  --t-large: 2.125rem; --t-title1: 1.75rem; --t-title2: 1.375rem; --t-title3: 1.25rem; --t-body: 1rem;
+  --t-callout: .9375rem; --t-subhead: .875rem; --t-footnote: .8125rem; --t-caption: .75rem;
+  --hit: 44px;
+  --c-gray: #5F5F66; --c-gray-t: #EDEDF0; --c-accent: #1D4FE0; --c-accent-t: #E4EAFB; --c-blue: #0B5CAD; --c-blue-t: #E1ECF7;
+  --c-teal: #0B7380; --c-teal-t: #E2EEF0; --c-green: #1E7A36; --c-green-t: #E4EFE7; --c-amber: #8A5A00; --c-amber-t: #F1EBE0;
+  --c-orange: #B23B00; --c-orange-t: #F6E7E0; --c-red: #C4001A; --c-red-t: #F8E0E4; --c-pink: #A8215F; --c-pink-t: #F5E2EB;
+  --c-purple: #7B3FA8; --c-purple-t: #EFE8F5;
+}
+/* Dark: follows the system, or forced by [data-theme="dark"] (the preview switch on this page). */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #000000; --surface: #1C1C1E; --elevated: #2C2C2E; --fill: #2C2C2E; --fill-2: #232325; --hover: #242427;
+  --separator: #38383A; --separator-strong: #48484A; --text: #F2F2F7; --muted: #AEAEB4; --faint: #98989F;
+  --accent: #6E95FF; --accent-hover: #8EADFF; --accent-tint: #2B3246; --on-accent: #000000;
+  --success: #4CD07D; --success-tint: #253C2F; --warn: #F5C04A; --warn-tint: #433A26; --danger: #FF6961; --danger-tint: #452A2A;
+  --badge: #FF453A; --glass: rgb(28 28 30 / 72%); --glass-border: rgb(255 255 255 / 9%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%); --shadow: 0 2px 12px rgb(0 0 0 / 40%); --shadow-lg: 0 24px 60px rgb(0 0 0 / 60%);
+  --c-gray: #AEAEB4; --c-gray-t: #2E2E31; --c-accent: #6E95FF; --c-accent-t: #2B3246; --c-blue: #64AAF5; --c-blue-t: #1E3043;
+  --c-teal: #5AC8D8; --c-teal-t: #273B3F; --c-green: #4CD07D; --c-green-t: #253C2F; --c-amber: #F5C04A; --c-amber-t: #433A26;
+  --c-orange: #FF9F5A; --c-orange-t: #453429; --c-red: #FF6961; --c-red-t: #452A2A; --c-pink: #FF8AB8; --c-pink-t: #44283A;
+  --c-purple: #C68BF0; --c-purple-t: #3B3044;
+} }
+:root[data-theme="dark"] {
+  --bg: #000000; --surface: #1C1C1E; --elevated: #2C2C2E; --fill: #2C2C2E; --fill-2: #232325; --hover: #242427;
+  --separator: #38383A; --separator-strong: #48484A; --text: #F2F2F7; --muted: #AEAEB4; --faint: #98989F;
+  --accent: #6E95FF; --accent-hover: #8EADFF; --accent-tint: #2B3246; --on-accent: #000000;
+  --success: #4CD07D; --success-tint: #253C2F; --warn: #F5C04A; --warn-tint: #433A26; --danger: #FF6961; --danger-tint: #452A2A;
+  --badge: #FF453A; --glass: rgb(28 28 30 / 72%); --glass-border: rgb(255 255 255 / 9%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%); --shadow: 0 2px 12px rgb(0 0 0 / 40%); --shadow-lg: 0 24px 60px rgb(0 0 0 / 60%);
+  --c-gray: #AEAEB4; --c-gray-t: #2E2E31; --c-accent: #6E95FF; --c-accent-t: #2B3246; --c-blue: #64AAF5; --c-blue-t: #1E3043;
+  --c-teal: #5AC8D8; --c-teal-t: #273B3F; --c-green: #4CD07D; --c-green-t: #253C2F; --c-amber: #F5C04A; --c-amber-t: #433A26;
+  --c-orange: #FF9F5A; --c-orange-t: #453429; --c-red: #FF6961; --c-red-t: #452A2A; --c-pink: #FF8AB8; --c-pink-t: #44283A;
+  --c-purple: #C68BF0; --c-purple-t: #3B3044;
+}
+@media (prefers-contrast: more) { :root { --muted: #3A3A3F; --faint: #46464C; --separator: #9A9AA0; --glass: var(--surface); } }
+/* Contexts: set on <body data-ctx> (or any container). The accent follows the mode. */
+[data-ctx="personal"] { --accent: #6B35C9; --accent-hover: #5A2BAE; --accent-tint: #EFE7FC; --on-accent: #FFFFFF; }
+[data-ctx="home"] { --accent: #0A7266; --accent-hover: #085E54; --accent-tint: #E0F3EF; --on-accent: #FFFFFF; }
+[data-ctx="all"] { --accent: #5856D6; --accent-hover: #4846B8; --accent-tint: #ECEBFB; --on-accent: #FFFFFF; }
+:root[data-theme="dark"] [data-ctx="work"] { --accent: #6E95FF; --accent-tint: #2B3246; --on-accent: #000; }
+:root[data-theme="dark"] [data-ctx="personal"] { --accent: #B794FF; --accent-hover: #C9AEFF; --accent-tint: #2F2645; --on-accent: #000000; }
+:root[data-theme="dark"] [data-ctx="home"] { --accent: #4FD1BE; --accent-hover: #74DCCC; --accent-tint: #1B3532; --on-accent: #000000; }
+:root[data-theme="dark"] [data-ctx="all"] { --accent: #7D7AFF; --accent-hover: #9A98FF; --accent-tint: #2A2A4A; --on-accent: #000000; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-ctx="work"] { --accent: #6E95FF; --accent-tint: #2B3246; --on-accent: #000; }
+  :root:not([data-theme="light"]) [data-ctx="personal"] { --accent: #B794FF; --accent-hover: #C9AEFF; --accent-tint: #2F2645; --on-accent: #000000; }
+  :root:not([data-theme="light"]) [data-ctx="home"] { --accent: #4FD1BE; --accent-hover: #74DCCC; --accent-tint: #1B3532; --on-accent: #000000; }
+  :root:not([data-theme="light"]) [data-ctx="all"] { --accent: #7D7AFF; --accent-hover: #9A98FF; --accent-tint: #2A2A4A; --on-accent: #000000; }
+}
+
+/* ================================ BASE ================================ */
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: var(--t-body); line-height: 1.45; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); } .small { font-size: var(--t-footnote); }
+.icon { flex: none; display: block; }
+.c-gray { --c: var(--c-gray); --ct: var(--c-gray-t); } .c-accent { --c: var(--c-accent); --ct: var(--c-accent-t); } .c-blue { --c: var(--c-blue); --ct: var(--c-blue-t); }
+.c-teal { --c: var(--c-teal); --ct: var(--c-teal-t); } .c-green { --c: var(--c-green); --ct: var(--c-green-t); } .c-amber { --c: var(--c-amber); --ct: var(--c-amber-t); }
+.c-orange { --c: var(--c-orange); --ct: var(--c-orange-t); } .c-red { --c: var(--c-red); --ct: var(--c-red-t); } .c-pink { --c: var(--c-pink); --ct: var(--c-pink-t); }
+.c-purple { --c: var(--c-purple); --ct: var(--c-purple-t); }
+
+/* ================================ COMPONENTS ================================ */
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: var(--fill); color: var(--text); padding: 8px 15px; min-block-size: 36px; border-radius: 10px; font-weight: 600; font-size: var(--t-callout); transition: background .12s, transform .08s; white-space: nowrap; }
+.btn:hover { background: var(--separator); } .btn:active { transform: scale(.98); }
+.btn.primary { background: var(--accent); color: var(--on-accent); } .btn.primary:hover { background: var(--accent-hover); }
+.btn.ghost { background: transparent; color: var(--accent); } .btn.ghost:hover { background: var(--accent-tint); }
+.btn.success { background: var(--success-tint); color: var(--success); }
+.btn.small { padding: 5px 11px; min-block-size: 32px; font-size: var(--t-subhead); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.icon-btn { display: inline-grid; place-items: center; inline-size: 34px; block-size: 34px; border: 0; background: transparent; border-radius: 9px; color: var(--accent); }
+.icon-btn:hover { background: var(--accent-tint); }
+.link-btn { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: var(--t-subhead); padding: 6px 4px; min-block-size: 32px; }
+.icon-btn:active, .chip-btn:active, .seg:active, .mini:active { transform: scale(.96); transition: transform 80ms ease-out; }
+
+/* Segmented control */
+.segmented { display: inline-flex; padding: 2px; background: var(--fill); border-radius: 9px; gap: 2px; }
+.seg { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; padding: 5px 12px; min-block-size: 30px; border-radius: 7px; color: var(--text); font-weight: 500; font-size: var(--t-subhead); }
+.seg.on { background: var(--elevated); box-shadow: 0 1px 3px rgb(0 0 0 / 12%); font-weight: 600; }
+.seg-count { padding: 0 6px; border-radius: 99px; background: color-mix(in srgb, var(--text) 10%, transparent); font-size: var(--t-caption); font-weight: 600; }
+
+/* Chips & pills */
+.chip-btn { border: 0; background: var(--accent-tint); color: var(--accent); padding: 6px 13px; min-block-size: 34px; border-radius: 99px; font-size: var(--t-subhead); font-weight: 600; }
+.chip-btn.neutral { background: var(--fill); color: var(--text); font-weight: 500; }
+.mini { border: 0; background: var(--fill); border-radius: 8px; padding: 4px 11px; min-block-size: 32px; font-size: var(--t-subhead); color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
+.mini.on { background: var(--ct, var(--accent-tint)); color: var(--c, var(--accent)); font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--c, var(--accent)); }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 99px; font-size: var(--t-footnote); font-weight: 600; background: var(--ct, var(--fill)); color: var(--c, var(--muted)); line-height: 1.5; white-space: nowrap; }
+.dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--c, var(--muted)); flex: none; }
+.badge-new { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 99px; background: var(--accent-tint); color: var(--accent); font-size: var(--t-caption); font-weight: 700; }
+.by-tag { padding: 1px 7px; border-radius: 99px; background: var(--fill); color: var(--muted); font-size: var(--t-caption); font-weight: 600; }
+.by-tag.me { background: var(--accent-tint); color: var(--accent); }
+
+/* Titles */
+.large-title { margin: 14px 2px 14px; }
+.eyebrow { margin: 0 0 2px; color: var(--muted); font-size: var(--t-subhead); font-weight: 600; }
+.large-title h1, .view-head h1 { font-size: var(--t-large); line-height: 1.15; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+.view-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 14px 0 16px; flex-wrap: wrap; }
+.view-sub { margin: 4px 0 0; color: var(--muted); font-size: var(--t-callout); }
+
+/* Grouped list (the backbone) */
+.group { margin-block-end: 24px; }
+.group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-end: 6px; padding-inline: 4px; }
+.group-title { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; font-size: var(--t-footnote); color: var(--muted); min-block-size: 32px; }
+.rows { display: flex; flex-direction: column; background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; }
+.row { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; min-block-size: 52px; background: var(--surface); }
+.row + .row::before { content: ''; position: absolute; inset-block-start: 0; inset-inline: 50px 0; border-block-start: 1px solid var(--separator); }
+.row:hover { background: var(--hover); } .row:active { background: var(--fill); }
+.row-main { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; gap: 3px; }
+.row-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 6px; font-size: var(--t-body); font-weight: 500; line-height: 1.35; }
+.row-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 14px; font-size: var(--t-subhead); color: var(--muted); }
+.meta-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.meta-item.is-danger { color: var(--danger); font-weight: 600; } .meta-item.is-strong { color: var(--text); font-weight: 600; }
+.row-id { color: var(--faint); font-size: var(--t-footnote); }
+.row-menu { border: 0; background: none; color: var(--faint); inline-size: 32px; block-size: 32px; display: grid; place-items: center; border-radius: 8px; }
+.subhead { display: flex; align-items: baseline; gap: 6px; padding: 10px 16px 4px; background: var(--fill-2); color: var(--muted); font-size: var(--t-footnote); font-weight: 600; }
+.subhead.tone-danger { color: var(--danger); }
+
+/* Check circle */
+.check { position: relative; flex: none; inline-size: 22px; block-size: 22px; margin-block-start: 1px; border-radius: 50%; border: 1.6px solid var(--separator-strong); background: transparent; color: transparent; display: grid; place-items: center; padding: 0; transition: background .15s, border-color .15s; }
+.check::before { content: ''; position: absolute; inset: -11px; } /* 44px hit area around a 22px circle */
+.check:hover { border-color: var(--success); color: var(--success); }
+.check.is-done { background: var(--success); border-color: var(--success); color: #fff; }
+.check:active { transform: scale(.88); }
+
+/* Hero: the one bold element per screen */
+.day-card { position: relative; color: #fff; border-radius: var(--radius-xl); padding: 18px 20px 16px; background: radial-gradient(120% 140% at 100% 0%, #22D3F5 0%, transparent 55%), linear-gradient(160deg, #1D4FE0 0%, #0A2FD0 60%, #0726B8 100%); box-shadow: 0 12px 30px -10px rgb(13 52 220 / 55%); overflow: hidden; }
+.day-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%); pointer-events: none; }
+[data-ctx="personal"] .day-card { background: linear-gradient(135deg, #8B5CF6 0%, #6B35C9 55%, #4C1D95 100%); box-shadow: 0 12px 30px -10px rgb(107 53 201 / 50%); }
+[data-ctx="home"] .day-card { background: linear-gradient(135deg, #14B8A6 0%, #0A7266 55%, #064E46 100%); box-shadow: 0 12px 30px -10px rgb(10 114 102 / 50%); }
+[data-ctx="all"] .day-card { background: radial-gradient(90% 120% at 100% 0%, rgb(20 184 166 / 75%) 0%, transparent 60%), radial-gradient(90% 120% at 0% 100%, rgb(139 92 246 / 85%) 0%, transparent 65%), linear-gradient(150deg, #1D4FE0 0%, #4338CA 55%, #3730A3 100%); box-shadow: 0 12px 30px -10px rgb(67 56 202 / 50%); }
+.day-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.day-label { font-size: var(--t-subhead); font-weight: 600; opacity: .9; }
+.day-count { font-size: var(--t-title3); font-weight: 600; margin-block-start: 2px; }
+.day-count strong { font-size: var(--t-title1); font-weight: 700; }
+.ring { position: relative; inline-size: 60px; block-size: 60px; display: grid; place-items: center; border-radius: 50%; box-shadow: inset 0 0 0 5px rgb(255 255 255 / 22%); font-weight: 700; font-size: var(--t-subhead); }
+.day-next { display: flex; align-items: center; gap: 10px; inline-size: 100%; margin-block-start: 14px; padding: 11px 14px; min-block-size: var(--hit); border: 0; border-radius: 14px; background: rgb(255 255 255 / 16%); color: #fff; font-size: var(--t-body); font-weight: 600; text-align: start; }
+.day-next-label { flex: none; font-size: var(--t-caption); font-weight: 700; background: #fff; color: #0A2FD0; border-radius: 99px; padding: 2px 9px; }
+[data-ctx="personal"] .day-next-label { color: #5A2BAE; } [data-ctx="home"] .day-next-label { color: #085E54; } [data-ctx="all"] .day-next-label { color: #3730A3; }
+.day-next-text { flex: 1; display: flex; flex-direction: column; }
+.day-next-why { font-size: var(--t-footnote); font-weight: 500; opacity: .85; }
+
+/* Context chip (mode switcher in the top bar) */
+.ctx-chip { display: inline-flex; align-items: center; gap: 6px; min-block-size: 40px; padding: 0 12px 0 10px; border: 0; border-radius: 99px; background: var(--accent-tint); color: var(--accent); font: 600 var(--t-subhead)/1 var(--font); }
+.ctx-auto { padding: 2px 6px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 16%, transparent); font-size: var(--t-caption); }
+
+/* Inputs */
+.qa-row { display: flex; align-items: center; gap: 10px; padding: 2px 14px; min-block-size: 48px; background: var(--surface); border-radius: var(--radius-lg); }
+.qa-row:focus-within { box-shadow: 0 0 0 3px var(--accent-tint); }
+.qa-plus { display: grid; place-items: center; inline-size: 24px; block-size: 24px; border-radius: 50%; background: var(--accent); color: var(--on-accent); flex: none; }
+.qa-input { flex: 1; border: 0; outline: none; background: transparent; padding: 10px 0; font-size: max(16px, var(--t-body)); min-inline-size: 0; }
+.search { display: flex; align-items: center; gap: 8px; padding: 0 12px; min-block-size: 38px; background: var(--fill); border-radius: 10px; color: var(--muted); }
+.search input { border: 0; background: none; outline: none; flex: 1; font-size: max(16px, 1em); }
+
+/* Panel / card */
+.panel { background: var(--surface); border-radius: var(--radius-lg); padding: 14px 16px; }
+.panel-title { display: flex; align-items: center; gap: 7px; font-size: var(--t-subhead); margin: 0 0 10px; color: var(--muted); font-weight: 600; }
+.panel-title .icon { color: var(--accent); }
+
+/* Schedule items: colour = the item's own context, never the screen's */
+.ev { display: flex; align-items: flex-start; gap: 12px; padding: 8px 6px; border-radius: 10px; --sp: #1D4FE0; --sp-tint: rgb(29 79 224 / 10%); }
+.ev.ev-sp-personal { --sp: #6B35C9; --sp-tint: rgb(107 53 201 / 11%); } .ev.ev-sp-home { --sp: #0A7266; --sp-tint: rgb(10 114 102 / 11%); }
+.ev-time { flex: none; display: flex; flex-direction: column; align-items: flex-end; min-inline-size: 46px; font-weight: 700; font-size: var(--t-callout); }
+.ev-end { font-size: var(--t-caption); font-weight: 500; color: var(--muted); }
+.ev-body { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; padding-inline-start: 10px; border-inline-start: 3px solid var(--sp); }
+.ev-work .ev-body { background: var(--sp-tint); border-radius: 0 8px 8px 0; padding-block: 3px; padding-inline-end: 8px; }
+.ev-title { display: flex; align-items: center; gap: 6px; font-weight: 600; } .ev-title .icon { color: var(--sp); }
+.ev-meta { color: var(--muted); font-size: var(--t-footnote); }
+
+/* Swipe row (Reminders-style) — static specimen showing the revealed action */
+.swipe { position: relative; overflow: hidden; }
+.swipe-actions { position: absolute; inset-block: 0; display: flex; }
+.swipe-actions.lead { inset-inline-start: 0; }
+.swipe-btn { inline-size: 84px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff; font-size: var(--t-footnote); font-weight: 600; }
+.swipe-btn.tone-red { background: #C4001A; } .swipe-btn.tone-gray { background: #5F5F66; }
+.shop-row { display: flex; align-items: center; gap: 12px; min-block-size: var(--hit); padding: 4px 6px 4px 16px; background: var(--surface); }
+.shop-check { flex: none; display: grid; place-items: center; inline-size: 24px; block-size: 24px; border-radius: 50%; border: 1.8px solid var(--separator-strong); color: #fff; }
+.shop-row.done .shop-check { background: var(--success); border-color: var(--success); }
+.shop-row.done .shop-text { color: var(--muted); text-decoration: line-through; }
+.shop-text { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.shop-qty { padding: 1px 7px; border-radius: 99px; background: var(--fill); font-size: var(--t-footnote); font-weight: 600; }
+.claim-btn { flex: none; min-block-size: 36px; padding: 0 14px; border: 0; border-radius: 99px; background: var(--accent-tint); color: var(--accent); font: 600 var(--t-subhead)/1 var(--font); }
+
+/* Action sheet (centred popover on desktop, bottom sheet on phones) */
+.action-sheet { inline-size: min(380px, 100%); padding: 8px 8px 12px; background: var(--elevated); border-radius: 16px; box-shadow: var(--shadow-lg); }
+.as-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px; }
+.as-task { flex: 1; font-weight: 700; font-size: var(--t-callout); }
+.as-item { display: flex; align-items: center; gap: 10px; inline-size: 100%; min-block-size: var(--hit); padding: 0 12px; border: 0; border-radius: 10px; background: transparent; text-align: start; font-size: var(--t-body); }
+.as-item:hover { background: var(--hover); } .as-item .icon { color: var(--muted); }
+.as-item.tone-danger, .as-item.tone-danger .icon { color: var(--danger); }
+.as-label { padding: 8px 12px 4px; color: var(--muted); font-size: var(--t-footnote); font-weight: 600; }
+.as-chip-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 6px; }
+
+/* Context list rows (inside the switcher sheet) */
+.ctx-row { display: flex; align-items: center; gap: 12px; inline-size: 100%; min-block-size: 60px; padding: 8px 10px; border: 0; border-radius: 14px; background: transparent; text-align: start; }
+.ctx-row.on { background: var(--fill-2); }
+.ctx-row-icon { flex: none; display: grid; place-items: center; inline-size: 38px; block-size: 38px; border-radius: 11px; color: #fff; }
+.ctx-row-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ctx-row-label { font-weight: 600; } .ctx-row-desc { color: var(--muted); font-size: var(--t-footnote); }
+
+/* Floating tab dock + primary round action */
+.mobile-dock { display: flex; align-items: center; gap: 10px; }
+.mobile-nav { flex: 1; display: flex; justify-content: space-around; padding: 6px; border-radius: 30px; background: var(--glass); -webkit-backdrop-filter: blur(24px) saturate(1.8); backdrop-filter: blur(24px) saturate(1.8); border: 1px solid var(--glass-border); box-shadow: var(--shadow); }
+.mnav { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-block-size: 50px; font-size: var(--t-caption); font-weight: 600; color: var(--text); border-radius: 24px; }
+.mnav.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.mnav-count { position: absolute; inset-block-start: 2px; inset-inline-end: calc(50% - 22px); min-inline-size: 20px; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; background: var(--fill); color: var(--text); border-radius: 99px; padding: 0 5px; }
+.dock-add { flex: none; display: grid; place-items: center; inline-size: 62px; block-size: 62px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); box-shadow: 0 10px 24px -6px color-mix(in srgb, var(--accent) 60%, transparent); }
+
+/* Toast with undo */
+.toast { display: inline-flex; align-items: center; gap: 10px; background: rgb(30 30 32 / 92%); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); color: #F2F2F7; padding: 8px 8px 8px 14px; min-block-size: var(--hit); border-radius: 16px; box-shadow: var(--shadow-lg); font-size: var(--t-subhead); font-weight: 500; }
+.toast-action { border: 0; background: rgb(255 255 255 / 16%); color: #fff; font-weight: 700; padding: 6px 12px; min-block-size: 32px; border-radius: 10px; font-size: var(--t-subhead); }
+
+/* Empty state */
+.empty { text-align: center; padding: 32px 20px; color: var(--muted); }
+.empty-icon { display: inline-grid; place-items: center; inline-size: 56px; block-size: 56px; border-radius: 16px; background: var(--accent-tint); color: var(--accent); margin-block-end: 12px; }
+.empty h3 { margin: 0 0 4px; color: var(--text); font-size: var(--t-title3); }
+
+/* Pairing (sign-in) list */
+.pair-people { display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-lg); background: var(--surface); }
+.pair-person { display: flex; align-items: center; gap: 14px; min-block-size: 64px; padding: 10px 16px; border: 0; background: transparent; text-align: start; font: 600 var(--t-body)/1.2 var(--font); }
+.pair-person + .pair-person { border-block-start: 1px solid var(--separator); }
+.pair-avatar { display: grid; place-items: center; inline-size: 42px; block-size: 42px; border-radius: 50%; color: #fff; font-size: 18px; font-weight: 700; }
+.pair-code { inline-size: 100%; font: 700 32px/1 var(--font); letter-spacing: .35em; text-indent: .35em; text-align: center; padding: 14px; border: 0; border-radius: 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--separator); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-property: opacity, color, background-color, border-color, box-shadow !important; } }
+
+/* ================================ THIS PAGE ONLY (not part of the system) ================================ */
+.ds { max-inline-size: 1080px; margin: 0 auto; padding: 24px 20px 80px; }
+.ds-top { position: sticky; inset-block-start: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--glass); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); border-block-end: 1px solid var(--glass-border); }
+.ds-top strong { font-size: var(--t-callout); } .ds-top .sp { flex: 1; }
+.ds h2 { font-size: var(--t-title2); margin: 44px 2px 4px; letter-spacing: -0.01em; }
+.ds h2 + p { margin: 0 2px 16px; color: var(--muted); font-size: var(--t-callout); max-inline-size: 70ch; }
+.ds h3 { font-size: var(--t-footnote); color: var(--muted); margin: 18px 4px 8px; font-weight: 600; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.wrap { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sw { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--surface); border-radius: 12px; }
+.sw i { flex: none; inline-size: 40px; block-size: 40px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgb(127 127 127 / 20%); }
+.sw b { display: block; font-size: var(--t-subhead); } .sw code { font-size: var(--t-caption); color: var(--muted); }
+.type-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 16px; background: var(--surface); }
+.type-row + .type-row { border-block-start: 1px solid var(--separator); }
+.type-row code { color: var(--muted); font-size: var(--t-caption); white-space: nowrap; }
+.phone { inline-size: 390px; max-inline-size: 100%; background: var(--bg); border-radius: 38px; padding: 14px; box-shadow: 0 0 0 10px #1C1C1E, var(--shadow-lg); }
+.rules { margin: 0; padding: 14px 18px 14px 18px; background: var(--surface); border-radius: var(--radius-lg); }
+.rules li { margin: 6px 0; line-height: 1.5; }
+.rules li::marker { color: var(--accent); }
+pre.code { direction: ltr; text-align: left; overflow-x: auto; background: var(--surface); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; line-height: 1.5; margin: 0; }
+.ctxbox { padding: 14px; border-radius: 18px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--separator); }
+.ctxbox > .eyebrow { margin-block-end: 8px; }
+</style>
+</head>
+<body data-ctx="work">
+<div class="ds-top">
+  <strong>Workboard · Design System</strong>
+  <span class="muted small">Apple HIG · עברית RTL · iPhone-first</span>
+  <span class="sp"></span>
+  <div class="segmented" role="group" aria-label="מצב תצוגה">
+    <button class="seg on" data-theme-set="auto">מערכת</button><button class="seg" data-theme-set="light">בהיר</button><button class="seg" data-theme-set="dark">כהה</button>
+  </div>
+</div>
+
+<main class="ds">
+  <header class="large-title">
+    <p class="eyebrow">מערכת עיצוב · v2026.10</p>
+    <h1>Workboard</h1>
+    <p class="view-sub">רשימות מקובצות שקטות בסגנון iOS, צבע אחד שמשמעותו "כאן ועכשיו", ואלמנט נועז אחד לכל מסך. הקובץ כתוב כך שגם מודל יוכל לקרוא אותו: הטוקנים כ־JSON בראש העמוד, ה־CSS המקורי בתגית אחת, וכל דוגמה כאן היא markup אמיתי עם שמות המחלקות של המערכת.</p>
+  </header>
+
+  <!-- ============================================================ RULES -->
+  <section id="rules">
+    <h2>עקרונות (חשוב יותר מכל ערך בודד)</h2>
+    <p>אם משכפלים לאתר אחר, אלה הכללים שיוצרים את התחושה.</p>
+    <ol class="rules">
+      <li><b>RTL קודם:</b> רק מאפיינים לוגיים (<code>margin-inline-start</code>, <code>inset-inline-end</code>, <code>border-block-start</code>). אף פעם left/right.</li>
+      <li><b>שקט כברירת מחדל:</b> רקע אפור, קבוצות לבנות מעוגלות (14px) עם קווים דקים. הנועזות מרוכזת במקום אחד — כרטיס הגרדיאנט.</li>
+      <li><b>צבע אחד = משמעות אחת:</b> accent = אינטראקטיבי / ההקשר הנוכחי · ירוק = בוצע · אדום = באיחור או מחיקה · ענבר = ממתין. צבעי ההקשר לא מסמנים סטטוס.</li>
+      <li><b>סטטוס כנקודה או pill בגוון</b>, לא כגוש צבע מלא. טקסט על גוון ≥ 4.5:1.</li>
+      <li><b>בהיר וכהה תוכננו יחד</b> (כהה: רקע שחור אמיתי, משטחים ‎#1C1C1E, accent בהיר יותר).</li>
+      <li><b>גדלים ב־rem</b> כך שגודל הטקסט של המערכת מגדיל הכל. מטרות מגע ≥ 44px. שדות בטלפון ≥ 16px (אחרת iOS עושה זום).</li>
+      <li><b>ניווט:</b> 4 לשוניות לכל היותר במעגן זכוכית צף, וכפתור פעולה עגול לידו. לשונית מנווטת — לא מבצעת.</li>
+      <li><b>גיליונות</b> למשימה ממוקדת: אחד בכל פעם, ידית גרירה, החלקה למטה לסגירה, וכפתור סגירה גלוי.</li>
+      <li><b>מחיקה = ביטול ב־toast</b>, לא חלון אישור (אלא אם בלתי הפיך).</li>
+      <li><b>כתיבה:</b> קצר וישיר; הכפתור אומר מה יקרה ("הסר מהרשימה" ולא "אישור"); פונים לאדם במגדר שלו; מצב ריק מזמין לפעולה הבאה.</li>
+      <li><b>מספרים, שעות ומזהים:</b> ספרות טבלאיות (<code>tabular-nums</code>) ובידוד עם <code>&lt;bdi&gt;</code> בתוך טקסט עברי.</li>
+      <li><b>אייקונים:</b> קו על רשת 24, עובי 1.8, קצוות מעוגלים, <code>currentColor</code>. דקורטיבי ← <code>aria-hidden</code>; כפתור אייקון ← <code>aria-label</code>.</li>
+    </ol>
+  </section>
+
+  <!-- ============================================================ COLOR -->
+  <section id="color">
+    <h2>צבע</h2>
+    <p>צבעים סמנטיים בלבד (כמו ב־iOS). אין צבע קשיח בתוך רכיב — הכל דרך משתנים. ההחלפה בין בהיר לכהה בראש העמוד מראה את שני הסטים.</p>
+    <h3>משטחים וטקסט</h3>
+    <div class="grid" id="sw-base"></div>
+    <h3>מצבים</h3>
+    <div class="grid" id="sw-state"></div>
+    <h3>פלטה בעלת שם (סטטוסים · פרויקטים · עדיפויות) — טקסט + גוון</h3>
+    <div class="wrap">
+      <span class="pill c-gray"><span class="dot"></span>אפור</span><span class="pill c-accent"><span class="dot"></span>accent</span>
+      <span class="pill c-blue"><span class="dot"></span>כחול</span><span class="pill c-teal"><span class="dot"></span>טורקיז</span>
+      <span class="pill c-green"><span class="dot"></span>ירוק</span><span class="pill c-amber"><span class="dot"></span>ענבר</span>
+      <span class="pill c-orange"><span class="dot"></span>כתום</span><span class="pill c-red"><span class="dot"></span>אדום</span>
+      <span class="pill c-pink"><span class="dot"></span>ורוד</span><span class="pill c-purple"><span class="dot"></span>סגול</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ CONTEXTS -->
+  <section id="contexts">
+    <h2>הקשרים (מצבים של כל האפליקציה)</h2>
+    <p><code>data-ctx</code> על ה־body מחליף את ה־accent ואת כרטיס הגרדיאנט. תוכן ששייך להקשר (פריט לו״ז, תגית) שומר על צבע ההקשר שלו בכל מצב. "הכל" הוא רב־צבעי — לא אפור (אפור נקרא כמושבת).</p>
+    <div class="grid">
+      <div class="ctxbox" data-ctx="work"><p class="eyebrow">work · עבודה</p><div class="stack"><button class="ctx-chip"><i data-i="briefcase" data-s="16"></i>עבודה<span class="ctx-auto">אוטו</span><i data-i="chevronDown" data-s="14"></i></button><div class="day-card"><div class="day-top"><div><div class="day-label">היום</div><div class="day-count"><strong class="num">2</strong> מתוך 5 בוצעו</div></div><div class="ring num">40%</div></div><button class="day-next"><span class="day-next-label">הבא</span><span class="day-next-text">מצגת להנהלה<span class="day-next-why">דדליין מחר · כבר בעבודה</span></span><i data-i="chevron" data-s="16"></i></button></div><button class="btn primary">פעולה ראשית</button></div></div>
+      <div class="ctxbox" data-ctx="personal"><p class="eyebrow">personal · אישי</p><div class="stack"><button class="ctx-chip"><i data-i="user" data-s="16"></i>אישי<i data-i="chevronDown" data-s="14"></i></button><div class="day-card"><div class="day-top"><div><div class="day-label">היום</div><div class="day-count"><strong class="num">0</strong> מתוך 1 בוצעו</div></div><div class="ring num">0%</div></div><button class="day-next"><span class="day-next-label">הבא</span><span class="day-next-text">לקנות מתנה לאמא</span><i data-i="chevron" data-s="16"></i></button></div><button class="btn primary">פעולה ראשית</button></div></div>
+      <div class="ctxbox" data-ctx="home"><p class="eyebrow">home · בית</p><div class="stack"><button class="ctx-chip"><i data-i="home" data-s="16"></i>בית<i data-i="chevronDown" data-s="14"></i></button><div class="day-card"><div class="day-top"><div><div class="day-label">היום</div><div class="day-count"><strong class="num">1</strong> מתוך 3 בוצעו</div></div><div class="ring num">33%</div></div><button class="day-next"><span class="day-next-label">הבא</span><span class="day-next-text">להזמין אינסטלטור</span><i data-i="chevron" data-s="16"></i></button></div><button class="btn primary">פעולה ראשית</button></div></div>
+      <div class="ctxbox" data-ctx="all"><p class="eyebrow">all · הכל</p><div class="stack"><button class="ctx-chip"><i data-i="layers" data-s="16"></i>הכל<i data-i="chevronDown" data-s="14"></i></button><div class="day-card"><div class="day-top"><div><div class="day-label">היום</div><div class="day-count"><strong class="num">3</strong> מתוך 9 בוצעו</div></div><div class="ring num">33%</div></div><button class="day-next"><span class="day-next-label">הבא</span><span class="day-next-text">מצגת להנהלה</span><i data-i="chevron" data-s="16"></i></button></div><button class="btn primary">פעולה ראשית</button></div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ TYPE -->
+  <section id="type">
+    <h2>טיפוגרפיה</h2>
+    <p>גופן המערכת של Apple (SF Hebrew) עם Heebo כגיבוי. סולם שמקביל ל־iOS text styles. משקל וגודל יוצרים היררכיה; כותרות גדולות עם ריווח שלילי קל.</p>
+    <div class="rows" id="type-scale"></div>
+  </section>
+
+  <!-- ============================================================ CONTROLS -->
+  <section id="controls">
+    <h2>פקדים</h2>
+    <p>מילוי אפור לפעולה משנית, accent לראשית, ghost לשלישית. לחיצה מקטינה ל־0.96 ב־80ms.</p>
+    <div class="grid">
+      <div class="panel"><p class="panel-title"><i data-i="zap" data-s="15"></i>כפתורים</p><div class="wrap"><button class="btn primary">שמור</button><button class="btn">ביטול</button><button class="btn ghost">עוד</button><button class="btn success"><i data-i="check" data-s="16"></i>סיימתי</button><button class="btn small primary">קטן</button><button class="btn" disabled>מושבת</button><button class="icon-btn" aria-label="הוסף"><i data-i="plus" data-s="18"></i></button><button class="link-btn">קישור</button></div></div>
+      <div class="panel"><p class="panel-title"><i data-i="list" data-s="15"></i>Segmented</p><div class="stack"><div class="segmented"><button class="seg on"><i data-i="sun" data-s="16"></i>היום שלי</button><button class="seg"><i data-i="target" data-s="16"></i>יש לי זמן פנוי</button></div><div class="segmented" style="inline-size:100%"><button class="seg on" style="flex:1">סופר <span class="seg-count num">9</span></button><button class="seg" style="flex:1">פארם</button><button class="seg" style="flex:1">לבית</button><button class="seg" style="flex:1">אישי</button><button class="seg" style="flex:1">Wish</button></div></div></div>
+      <div class="panel"><p class="panel-title"><i data-i="flag" data-s="15"></i>צ׳יפים ו־pills</p><div class="wrap"><button class="chip-btn">מחר</button><button class="chip-btn neutral">שבוע הבא</button><button class="mini c-accent on">בעבודה</button><button class="mini">הבא בתור</button><span class="pill c-amber"><span class="dot"></span>ממתין למישהו</span><span class="badge-new"><i data-i="chat" data-s="11"></i>חדש</span><span class="by-tag me">שלי</span><span class="by-tag">מאיה</span></div></div>
+      <div class="panel"><p class="panel-title"><i data-i="search" data-s="15"></i>שדות</p><div class="stack"><div class="search"><i data-i="search" data-s="16"></i><input placeholder="חיפוש משימות…"></div><div class="qa-row"><span class="qa-plus"><i data-i="plus" data-s="16"></i></span><input class="qa-input" placeholder="משימה חדשה להיום…"></div><input class="pair-code" inputmode="numeric" placeholder="000000" aria-label="קוד"></div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ LISTS -->
+  <section id="lists">
+    <h2>רשימה מקובצת — עמוד השדרה</h2>
+    <p>כותרת קבוצה קטנה ואפורה, קבוצה לבנה מעוגלת, שורות של 52px לפחות עם עיגול סימון, כותרת, ושורת מטא אפורה. קו מפריד מתחיל אחרי העיגול. תתי־כותרות לפי תאריך בתוך הקבוצה.</p>
+    <div class="grid">
+      <section class="group">
+        <div class="group-head"><div class="group-title"><i data-i="sun" data-s="15"></i><span>להיום</span><span class="num">3</span></div><button class="link-btn">הכל</button></div>
+        <div class="rows">
+          <div class="subhead tone-danger">באיחור <span class="num">1</span></div>
+          <div class="row"><button class="check" aria-label="סמן כבוצע"><i data-i="check" data-s="14"></i></button><div class="row-main"><div class="row-title"><span>Review מסמך הדרישות</span></div><div class="row-meta"><span class="meta-item is-danger"><i data-i="flag" data-s="13"></i>עד אתמול</span><span class="meta-item"><span class="dot c-blue"></span>מכרז 2027</span></div></div><span class="row-id num">#3</span><button class="row-menu" aria-label="פעולות"><i data-i="more" data-s="18"></i></button></div>
+          <div class="subhead">היום <span class="num">2</span></div>
+          <div class="row"><button class="check" aria-label="סמן כבוצע"><i data-i="check" data-s="14"></i></button><div class="row-main"><div class="row-title"><span>להכין מצגת לישיבת הנהלה</span><span class="badge-new"><i data-i="chat" data-s="11"></i>חדש</span></div><div class="row-meta"><span class="meta-item c-accent" style="color:var(--c)"><span class="dot"></span>בעבודה</span><span class="meta-item is-strong"><i data-i="calendar" data-s="13"></i>היום</span><span class="meta-item"><i data-i="bell" data-s="13"></i><span class="num">17:00</span></span><span class="meta-item"><i data-i="check" data-s="13"></i><span class="num">1/2</span></span></div></div><span class="row-id num">#1</span><button class="row-menu" aria-label="פעולות"><i data-i="more" data-s="18"></i></button></div>
+          <div class="row"><button class="check is-done" aria-label="החזר"><i data-i="check" data-s="14"></i></button><div class="row-main"><div class="row-title"><span style="color:var(--faint);text-decoration:line-through">לשלוח חשבונית</span></div></div><span class="row-id num">#6</span><button class="row-menu" aria-label="פעולות"><i data-i="more" data-s="18"></i></button></div>
+        </div>
+      </section>
+      <div class="stack">
+        <h3 style="margin-top:0">שורה עם החלקה (פעולה נחשפת משמאל)</h3>
+        <div class="rows"><div class="swipe"><div class="swipe-actions lead"><button class="swipe-btn tone-red"><i data-i="trash" data-s="20"></i>הסר</button></div><div class="shop-row" style="transform:translateX(-84px)"><span class="shop-check"></span><span class="shop-text">מלפפונים <span class="shop-qty num">2</span></span><button class="row-menu"><i data-i="more" data-s="18"></i></button></div></div><div class="shop-row" style="border-block-start:1px solid var(--separator)"><span class="shop-check"></span><span class="shop-text">אוזניות <span class="by-tag me">שלי</span></span></div><div class="shop-row" style="border-block-start:1px solid var(--separator)"><span class="shop-text">שרשרת <span class="by-tag">מאיה</span></span><button class="claim-btn">אני אקנה</button></div><div class="shop-row done" style="border-block-start:1px solid var(--separator)"><span class="shop-check"><i data-i="check" data-s="15"></i></span><span class="shop-text">חלב</span></div></div>
+        <h3>לו״ז — הצבע של ההקשר של הפריט</h3>
+        <div class="panel"><p class="panel-title"><i data-i="calendar" data-s="15"></i>הלו״ז היום</p>
+          <div class="ev ev-meeting"><span class="ev-time num">09:00<span class="ev-end">09:45</span></span><span class="ev-body"><span class="ev-title"><i data-i="users" data-s="14"></i>ישיבת צוות</span><span class="ev-meta">עם דנה · ⏰ 15 דק׳ לפני</span></span></div>
+          <div class="ev ev-work"><span class="ev-time num">10:00<span class="ev-end">11:30</span></span><span class="ev-body"><span class="ev-title"><i data-i="target" data-s="14"></i>עבודה על המצגת</span><span class="ev-meta">#1 · ⏰ 10 דק׳ לפני</span></span></div>
+          <div class="ev ev-meeting ev-sp-personal"><span class="ev-time num">16:00<span class="ev-end">16:30</span></span><span class="ev-body"><span class="ev-title"><i data-i="users" data-s="14"></i>רופא שיניים</span><span class="ev-meta">אישי</span></span></div>
+          <div class="ev ev-meeting ev-sp-home"><span class="ev-time num">18:00<span class="ev-end">19:00</span></span><span class="ev-body"><span class="ev-title"><i data-i="users" data-s="14"></i>טכנאי מזגנים</span><span class="ev-meta">בית · משותף</span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ SHEETS -->
+  <section id="sheets">
+    <h2>גיליונות, toast ומצב ריק</h2>
+    <p>גיליון פעולות: בדסקטופ פופאובר במרכז, בטלפון עולה מלמטה (20px עיגול עליון, נגרר). Toast כהה עם "ביטול". מצב ריק מסביר ומזמין.</p>
+    <div class="grid">
+      <div class="action-sheet" role="dialog" aria-label="דוגמה">
+        <div class="as-head"><div class="as-task">איפה את/ה עכשיו?</div><button class="icon-btn" aria-label="סגור"><i data-i="x" data-s="16"></i></button></div>
+        <button class="ctx-row"><span class="ctx-row-icon" style="background:#1D4FE0"><i data-i="briefcase" data-s="20"></i></span><span class="ctx-row-text"><span class="ctx-row-label">עבודה</span><span class="ctx-row-desc">משימות העבודה, הלו״ז והפרויקטים</span></span><span class="muted num">2</span></button>
+        <button class="ctx-row on"><span class="ctx-row-icon" style="background:#0A7266"><i data-i="home" data-s="20"></i></span><span class="ctx-row-text"><span class="ctx-row-label">בית</span><span class="ctx-row-desc">משימות משותפות, סופר ופארם</span></span><i data-i="check" data-s="18"></i></button>
+        <button class="ctx-row"><span class="ctx-row-icon" style="background:conic-gradient(from 200deg,#1D4FE0,#6B35C9,#0A7266,#1D4FE0)"><i data-i="layers" data-s="20"></i></span><span class="ctx-row-text"><span class="ctx-row-label">הכל</span><span class="ctx-row-desc">הכל ביחד, עם תווית לכל מרחב</span></span></button>
+      </div>
+      <div class="action-sheet">
+        <div class="as-head"><div class="as-task">להכין מצגת לישיבת הנהלה</div></div>
+        <div class="as-label">תאריך</div>
+        <div class="as-chip-row"><button class="chip-btn">היום</button><button class="chip-btn neutral">מחר</button><button class="chip-btn neutral">שבוע הבא</button></div>
+        <div class="as-label">פעולות</div>
+        <button class="as-item"><i data-i="external" data-s="16"></i>פתח משימה</button>
+        <button class="as-item tone-danger"><i data-i="trash" data-s="16"></i>מחק</button>
+      </div>
+      <div class="stack">
+        <div><span class="toast">״חלב״ הוסר<button class="toast-action">ביטול</button></span></div>
+        <div class="panel empty"><div class="empty-icon"><i data-i="cart" data-s="28"></i></div><h3>אין מה לקנות</h3><p>אפשר להוסיף כאן, או לכתוב לסוכן בווטסאפ: "תוסיף לקניות חלב".</p></div>
+        <div class="pair-people"><button class="pair-person"><span class="pair-avatar" style="background:#1D4FE0">א</span><span style="flex:1">אבי</span><i data-i="chevron" data-s="16"></i></button><button class="pair-person"><span class="pair-avatar" style="background:#A8215F">מ</span><span style="flex:1">מאיה</span><i data-i="chevron" data-s="16"></i></button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ PHONE -->
+  <section id="phone">
+    <h2>מסך מלא בטלפון</h2>
+    <p>כותרת גדולה, כרטיס היום (האלמנט הנועז היחיד), רשימה מקובצת, ומעגן לשוניות צף עם כפתור עגול. הלשונית הרביעית משתנה לפי ההקשר (בבית: קניות).</p>
+    <div class="phone" data-ctx="home">
+      <div class="wrap" style="justify-content:space-between;margin-block-end:6px"><div class="search" style="flex:1"><i data-i="search" data-s="16"></i><input placeholder="חיפוש משימות…"></div><button class="ctx-chip"><i data-i="home" data-s="16"></i>בית<i data-i="chevronDown" data-s="14"></i></button></div>
+      <header class="large-title"><p class="eyebrow">בית · יום שישי · 16 באוקטובר</p><h1>בוקר טוב, אבי</h1></header>
+      <div class="day-card"><div class="day-top"><div><div class="day-label">היום</div><div class="day-count"><strong class="num">1</strong> מתוך 3 בוצעו</div></div><div class="ring num">33%</div></div><button class="day-next"><span class="day-next-label">הבא</span><span class="day-next-text">להזמין אינסטלטור</span><i data-i="chevron" data-s="16"></i></button></div>
+      <section class="group" style="margin-top:18px"><div class="group-head"><div class="group-title"><i data-i="sun" data-s="15"></i><span>להיום</span><span class="num">2</span></div></div>
+        <div class="rows"><div class="row"><button class="check"><i data-i="check" data-s="14"></i></button><div class="row-main"><div class="row-title">להזמין אינסטלטור</div><div class="row-meta"><span class="meta-item is-strong"><i data-i="calendar" data-s="13"></i>היום</span></div></div></div><div class="row"><button class="check"><i data-i="check" data-s="14"></i></button><div class="row-main"><div class="row-title">לתקן את הברז</div><div class="row-meta"><span class="meta-item" style="color:#0A7266;font-weight:600"><i data-i="home" data-s="13"></i>בית · שנינו</span></div></div></div></div>
+      </section>
+      <div class="mobile-dock"><nav class="mobile-nav"><a class="mnav active"><i data-i="sun" data-s="20"></i><span>היום</span><span class="mnav-count num">2</span></a><a class="mnav"><i data-i="calendar" data-s="20"></i><span>יומן</span></a><a class="mnav"><i data-i="list" data-s="20"></i><span>משימות</span></a><a class="mnav"><i data-i="cart" data-s="20"></i><span>קניות</span></a></nav><button class="dock-add" aria-label="משימה חדשה"><i data-i="plus" data-s="24"></i></button></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ MOTION -->
+  <section id="motion">
+    <h2>תנועה</h2>
+    <p>קצרה, תכליתית, ניתנת לעצירה. Spring שיורש את מהירות האצבע. Reduce Motion ← רק שקיפות.</p>
+    <pre class="code">press         transform: scale(.96)  80ms ease-out        (check circle: scale(.88))
+popover       rise 180ms cubic-bezier(.2,.8,.2,1): translateY(8px) scale(.98) → none
+phone sheet   slide up 280ms cubic-bezier(.2,.8,.2,1); drag 1:1, rubber-band up,
+              dismiss if velocity > 600px/s or projected landing > 40% of height
+swipe rows    1:1 tracking, ~10px hysteresis, flick ≥ 450px/s decides,
+              long swipe > 55% width arms the primary action (+10ms haptic)
+reduced       @media (prefers-reduced-motion: reduce) { no animation; opacity/colour only }</pre>
+  </section>
+
+  <!-- ============================================================ ICONS -->
+  <section id="icons">
+    <h2>אייקונים</h2>
+    <p>רשת 24×24, קו 1.8, קצוות מעוגלים, <code>stroke="currentColor"</code>. הנתיבים זמינים בקובץ (אובייקט <code>ICONS</code> בסוף).</p>
+    <div class="wrap" id="icon-grid"></div>
+  </section>
+</main>
+
+<script>
+// Icons (same 24-grid line set as the app). <i data-i="name" data-s="size"></i> → inline SVG.
+const ICONS = {
+  home: 'M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5', cart: 'M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6.2M10 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM18 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+  briefcase: 'M4 8h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18',
+  sun: 'M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4 7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  list: 'M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01', calendar: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM16 2v4M8 2v4M4 10h16',
+  folder: 'M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z', check: 'M20 6 9 17l-5-5',
+  bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0', plus: 'M12 5v14M5 12h14', search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3', x: 'M18 6 6 18M6 6l12 12',
+  trash: 'M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2',
+  chat: 'M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.5 8.5 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z', flag: 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7',
+  clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2', chevron: 'M15 18l-6-6 6-6', chevronDown: 'M6 9l6 6 6-6', layers: 'M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  zap: 'M13 2 3 14h9l-1 8 10-12h-9z', more: 'M5 13.2a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4zM12 13.2a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4zM19 13.2a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4z',
+  user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  target: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', star: 'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2-6.2 3.2L7 14.2 2 9.3l6.9-1z',
+  sparkles: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 3v4M21 5h-4M5 17v4M7 19H3', note: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
+  menu: 'M3 12h18M3 6h18M3 18h18', external: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3',
+};
+const svg = (name, size = 18) => `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name] || ''}"/></svg>`;
+document.querySelectorAll('i[data-i]').forEach((el) => { el.outerHTML = svg(el.dataset.i, el.dataset.s); });
+
+// Swatches and the type scale come from the JSON tokens above (single source of truth on this page).
+const tokens = JSON.parse(document.getElementById('design-tokens').textContent);
+const swatch = (key, cssVar) => `<div class="sw"><i style="background:var(${cssVar})"></i><div><b>${key}</b><code>var(${cssVar}) · ${tokens.color.light[key] || ''} / ${tokens.color.dark[key] || ''}</code></div></div>`;
+const kebab = (k) => `--${k.replace(/([A-Z])/g, '-$1').replace(/(\d)/, '-$1').toLowerCase()}`;
+document.getElementById('sw-base').innerHTML = ['bg', 'surface', 'elevated', 'fill', 'separator', 'text', 'muted', 'faint', 'accent', 'accentTint'].map((k) => swatch(k, kebab(k))).join('');
+document.getElementById('sw-state').innerHTML = ['success', 'successTint', 'warn', 'warnTint', 'danger', 'dangerTint', 'badge'].map((k) => swatch(k, kebab(k))).join('');
+document.getElementById('type-scale').innerHTML = Object.entries(tokens.typeScale).map(([k, t]) => `<div class="type-row"><span style="font-size:${t.rem}rem;font-weight:${t.weight};${t.tracking ? `letter-spacing:${t.tracking}` : ''}">${k === 'large' ? 'בוקר טוב, אבי' : 'הבא בתור · 12 משימות'}</span><code>${k} · ${t.px}px / ${t.rem}rem · ${t.weight} — ${t.use}</code></div>`).join('');
+document.getElementById('icon-grid').innerHTML = Object.keys(ICONS).map((k) => `<span class="sw" title="${k}">${svg(k, 22)}<code>${k}</code></span>`).join('');
+
+// Theme preview switch (page only).
+document.querySelectorAll('[data-theme-set]').forEach((b) => b.addEventListener('click', () => {
+  const v = b.dataset.themeSet;
+  if (v === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = v;
+  document.querySelectorAll('[data-theme-set]').forEach((x) => x.classList.toggle('on', x === b));
+}));
+</script>
+</body>
+</html>

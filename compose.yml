@@ -1,0 +1,40 @@
+# Workboard — one container, zero dependencies. Everything instance-specific comes from the environment:
+#   docker compose --env-file /path/to/instance/.env up -d
+# Variables used here (all optional): WORKBOARD_PORT, WORKBOARD_BIND, WORKBOARD_DATA_DIR, WORKBOARD_ENV_FILE,
+# WORKBOARD_CONTAINER, WORKBOARD_IMAGE, TZ. App settings (tokens, hosts, work week…) are read from the same env
+# file inside the container — see examples/.env.example. Add a compose.override.yml for local extras (e.g. joining
+# your agent's Docker network) — see examples/compose.override.yml.
+name: workboard
+services:
+  workboard:
+    build: .
+    image: ${WORKBOARD_IMAGE:-workboard:local}
+    container_name: ${WORKBOARD_CONTAINER:-workboard}
+    restart: unless-stopped
+    ports:
+      # Loopback by default: put a TLS reverse proxy (Caddy, Tailscale serve, nginx…) in front of it.
+      - "${WORKBOARD_BIND:-127.0.0.1}:${WORKBOARD_PORT:-3000}:3000"
+    volumes:
+      - ${WORKBOARD_DATA_DIR:-./data}:/app/data
+    env_file:
+      - path: ${WORKBOARD_ENV_FILE:-.env}
+        required: true   # fail loudly instead of starting without tokens and hosts (Compose ≥ 2.24)
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3000
+      - TZ=${TZ:-Asia/Jerusalem}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

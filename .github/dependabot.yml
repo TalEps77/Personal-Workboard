@@ -1,0 +1,6 @@
+# The app has no npm dependencies; keep the pinned GitHub Actions current.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

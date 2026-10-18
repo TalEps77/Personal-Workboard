@@ -1,0 +1,55 @@
+{
+  "users": [
+    {
+      "id": "avi",
+      "name": "אבי",
+      "agent": "אטלס",
+      "agentActor": "atlas",
+      "gender": "m"
+    },
+    {
+      "id": "maya",
+      "name": "מאיה",
+      "agent": "נובה",
+      "agentActor": "nova",
+      "gender": "f"
+    }
+  ],
+  "spaces": [
+    {
+      "id": "work",
+      "label": "עבודה",
+      "owner": "avi",
+      "kind": "work"
+    },
+    {
+      "id": "avi-life",
+      "label": "אישי",
+      "owner": "avi",
+      "kind": "personal"
+    },
+    {
+      "id": "home",
+      "label": "בית",
+      "kind": "home",
+      "members": [
+        "avi",
+        "maya"
+      ]
+    },
+    {
+      "id": "maya-work",
+      "label": "עבודה",
+      "owner": "maya",
+      "kind": "work"
+    },
+    {
+      "id": "maya-life",
+      "label": "אישי",
+      "owner": "maya",
+      "kind": "personal"
+    }
+  ],
+  "defaultSpace": "work",
+  "defaultUser": "avi"
+}

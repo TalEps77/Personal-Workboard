@@ -1,0 +1,21 @@
+{
+  "name": "personal-workboard",
+  "version": "1.0.0",
+  "description": "A self-hosted, Hebrew-first task board for one person or a household — work, personal and home spaces, a schedule with WhatsApp heads-ups, shared shopping lists — run from your phone and by your AI agent over MCP.",
+  "license": "MIT",
+  "type": "module",
+  "repository": { "type": "git", "url": "https://github.com/TalEps77/Personal-Workboard.git" },
+  "homepage": "https://github.com/TalEps77/Personal-Workboard#readme",
+  "bugs": { "url": "https://github.com/TalEps77/Personal-Workboard/issues" },
+  "keywords": ["tasks", "todo", "pwa", "mcp", "ai-agent", "hermes", "whatsapp", "self-hosted", "hebrew", "rtl"],
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "WORKBOARD_DEV_NO_AUTH=1 HOST=127.0.0.1 node server/index.js",
+    "check": "for f in server/*.js public/js/*.js scripts/*.mjs; do node --check $f || exit 1; done",
+    "test": "node --test --test-timeout=20000 \"tests/*.test.js\"",
+    "test:browser": "tests/browser/run.sh && SUITE=spaces tests/browser/run.sh && SUITE=zoom tests/browser/run.sh",
+    "docs:tools": "node scripts/gen-tools-doc.mjs",
+    "docs:check": "node scripts/gen-tools-doc.mjs --check"
+  },
+  "engines": { "node": ">=22" }
+}

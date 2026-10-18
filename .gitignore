@@ -1,0 +1,12 @@
+# Instance files never belong in the repository
+.env
+.env.*
+!examples/.env.example
+data/
+compose.override.yml
+
+node_modules/
+*.log
+*.tmp
+coverage/
+.DS_Store

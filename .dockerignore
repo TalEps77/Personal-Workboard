@@ -1,0 +1,15 @@
+.git
+node_modules
+.env
+.env.*
+compose.override.yml
+.github
+scripts
+examples
+integrations
+*.log
+coverage
+data
+docs
+deploy
+tests
