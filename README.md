@@ -66,6 +66,10 @@ Dynamic Type, full RTL, and copy that addresses each person in their own grammat
 </tr>
 </table>
 
+## Team board (optional)
+
+Link each person's work space to a team board: tasks you own or review there appear here, edits go back, and a personal task can be put on the team board. [docs/team-board.md](docs/team-board.md)
+
 ## Quick start
 
 ```bash

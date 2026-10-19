@@ -517,7 +517,7 @@ async function resync() {
   if (!data.snapshot_at) checkVersion(data.version);
   // A snapshot (served by the service worker when offline) carries the time it was taken.
   setState({ schema: data.schema, degraded: data.degraded, activity: data.activity, events: data.events || [], notifier: data.notifier, device: data.device, offlineSince: data.snapshot_at || null,
-    locale: data.locale || null, defaultUser: data.defaultUser || null, me: data.me || null, actor: data.actor || 'dashboard', people: data.people || [], spaces: data.spaces || [], multi: Boolean(data.multi), shopping: data.shopping || null, depts: data.depts || [] });
+    locale: data.locale || null, defaultUser: data.defaultUser || null, me: data.me || null, actor: data.actor || 'dashboard', people: data.people || [], spaces: data.spaces || [], multi: Boolean(data.multi), shopping: data.shopping || null, depts: data.depts || [], org: data.org || null });
   if (!data.snapshot_at) writeSnapshot();
 }
 

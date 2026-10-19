@@ -93,6 +93,8 @@ function rowMeta(task, { showStatus, showProject, showKind = true }) {
   const add = (el) => { if (el) parts.push(el); };
   // Mixed list ("הכל"): personal and home tasks say so; work is the default and stays unmarked.
   add(spaceChip(task));
+  // Mirrored from the team board.
+  if (task.org && !task.org.gone) add(h('span', { class: 'meta-item org-chip', title: task.org.role === 'reviewer' ? 'משימה ארגונית — את/ה המבקר/ת' : 'משימה ארגונית' }, icon('users', 13), task.org.role === 'reviewer' ? 'ארגוני · ביקורת' : task.org.status === 'pending' ? 'ארגוני · ממתין לאישורך' : 'ארגוני'));
   // Status only when it says something: the default column ("הבא בתור") is the norm, not news.
   if (showStatus && !['inbox', 'todo'].includes(categoryOf(task))) { const s = statusOf(task.status); add(h('span', { class: `meta-item c-${s.color}` }, h('span', { class: 'dot' }), s.label)); }
   if (showProject) { const pr = projectOf(task.project); if (pr) add(h('span', { class: `meta-item c-${pr.color}` }, h('span', { class: 'dot' }), bdi(pr.name))); }

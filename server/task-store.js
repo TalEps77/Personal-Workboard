@@ -188,7 +188,7 @@ export function createTaskStore(root, { schemaStore, onChange = () => {}, lock =
   async function apply(base, changes, now, { isNew = false } = {}) {
     const schema = await schemaStore.get();
     const task = { ...base };
-    const editable = ['space', 'assignee', 'title', 'status', 'priority', 'project', 'tags', 'when', 'deadline', 'steps', 'notes', 'order', 'archived', 'seen', 'source'];
+    const editable = ['space', 'assignee', 'title', 'status', 'priority', 'project', 'tags', 'when', 'deadline', 'steps', 'notes', 'order', 'archived', 'seen', 'source', 'org'];
     for (const key of editable) if (changes[key] !== undefined) task[key] = changes[key];
     if (changes.fields !== undefined) {
       if (!changes.fields || typeof changes.fields !== 'object' || Array.isArray(changes.fields)) throw bad('fields must be an object');
@@ -247,7 +247,7 @@ export function createTaskStore(root, { schemaStore, onChange = () => {}, lock =
     const changed = diff(before, after);
     if (!Object.keys(changed).length) {
       // Only bookkeeping (e.g. `seen`) changed: save quietly, no activity line.
-      if (before.seen !== after.seen || before.source !== after.source) {
+      if (before.seen !== after.seen || before.source !== after.source || !same(before.org, after.org)) {
         await save(after);
         onChange({ type: 'task', task: after });
       }
@@ -309,7 +309,7 @@ export function createTaskStore(root, { schemaStore, onChange = () => {}, lock =
         await mkdir(directory, { recursive: true });
         const schema = await schemaStore.get();
         const fromAgent = !String(actor).startsWith('dashboard');
-        const blank = { space: null, assignee: null, title: '', status: schema.defaultStatus, priority: null, project: null, tags: [], when: null, deadline: null, reminders: [], fields: {}, order: 0, archived: false, source: fromAgent ? 'whatsapp' : 'dashboard', seen: !fromAgent, created_at: now, completed_at: null, steps: [], notes: '' };
+        const blank = { org: null, space: null, assignee: null, title: '', status: schema.defaultStatus, priority: null, project: null, tags: [], when: null, deadline: null, reminders: [], fields: {}, order: 0, archived: false, source: fromAgent ? 'whatsapp' : 'dashboard', seen: !fromAgent, created_at: now, completed_at: null, steps: [], notes: '' };
         const task = await apply(blank, { ...input, order: input.order ?? Date.now() }, now, { isNew: true });
         task.id = await nextId();
         task.created_at = now;

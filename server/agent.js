@@ -42,6 +42,7 @@ export function taskLine(task, schema, now = new Date(), { reminders = true, tag
   if (p.total) bits.push(`☑${p.done}/${p.total}`);
   if (task.priority === 'urgent' || task.priority === 'high') bits.push(task.priority === 'urgent' ? '‼️' : '❗');
   if (reminders) for (const r of task.reminders.filter((x) => !x.done)) bits.push(`⏰ ${shortDay(local(r.at).date, now)} ${local(r.at).time} [${r.id}]${r.repeat ? ` ${r.repeat}` : ''}${r.nag ? ` כל ${r.nag}ד׳` : ''}`);
+  if (task.org) bits.push(task.org.gone ? '🏢 כבר לא בלוח הארגוני' : `🏢 ארגוני${task.org.role === 'reviewer' ? ' · את/ה המבקר/ת' : task.org.status === 'pending' ? ' · ממתין לאישורך בלוח הצוות' : ''}`);
   if (task.archived) bits.push('בארכיון');
   return bits.join(' · ');
 }
@@ -217,6 +218,8 @@ export const TOOLS = [
           properties: {
             id: { type: 'integer' }, ...TASK_FIELDS,
             done: { type: 'boolean' }, archived: { type: 'boolean' },
+            reason: { type: 'string', description: 'Why the deadline moves. Required when moving the deadline of a team-board task (marked 🏢): it is recorded there and shown to the reviewer.' },
+            expose_to_org: { type: 'boolean', description: 'true = put this personal task on the team board (one way; it becomes a managed team task). Only when the person asks.' },
             add_tags: { type: 'array', items: { type: 'string' } }, remove_tags: { type: 'array', items: { type: 'string' } },
             add_steps: { type: 'array', items: { type: 'string' } },
             check_steps: { type: 'array', items: { type: 'integer' }, description: 'Step numbers to mark done.' },
@@ -309,7 +312,7 @@ export const TOOLS = [
   },
 ];
 
-export function createAgentTools({ taskStore: rawTasks, schemaStore: rawSchema, scheduler: rawScheduler, eventStore: rawEvents = null, access = null, shopping = null }) {
+export function createAgentTools({ taskStore: rawTasks, schemaStore: rawSchema, scheduler: rawScheduler, eventStore: rawEvents = null, access = null, shopping = null, orgSync = null }) {
   const now = () => new Date();
 
   function fieldChanges(schema, input, task = null, { workdays = true } = {}) {
@@ -510,6 +513,7 @@ export function createAgentTools({ taskStore: rawTasks, schemaStore: rawSchema, 
         for (const u of updates) {
           try {
             let warn = ''; let activity = null;
+            if (u.reason) orgSync?.setReason(String(u.id), u.reason);
             const task = await taskStore.update(String(u.id), (current) => {
               const target = access?.space(resolveSpace(u.space) ?? access.spaceOf(current));
               const { out: changes, warn: w } = fieldChanges(schema, u, current, { workdays: !target || target.kind === 'work' });
@@ -526,6 +530,12 @@ export function createAgentTools({ taskStore: rawTasks, schemaStore: rawSchema, 
               }
               return changes;
             }, { actor: this.actor, onActivity: (entry) => { activity = entry; } });
+            if (u.expose_to_org) {
+              if (!orgSync?.configuredFor(me ?? access?.people?.defaultUser ?? 'me')) throw bad('No team board is connected for this person');
+              const team = await orgSync.expose(me ?? access?.people?.defaultUser ?? 'me', String(u.id));
+              out.push(`🏢 #${u.id} נחשפה ללוח הארגוני (#${team.id} שם)${team.status === 'pending' ? ' — ממתינה לאישור' : ''}`);
+              if (!activity) continue;
+            }
             out.push(activity
               ? `✅ ${taskLine(task, schema, n)} (שונה: ${activity.summary}; undo: ${activity.id})${warn}`
               : `➖ #${task.id} ${task.title}: לא היה מה לשנות — הכול כבר כך (אין undo)${warn}`);

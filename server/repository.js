@@ -15,7 +15,7 @@
 //
 // Parsing is tolerant (unquoted values, English headings) so hand edits by people or agents keep working.
 
-export const FRONTMATTER_ORDER = ['space', 'assignee', 'status', 'priority', 'project', 'tags', 'when', 'deadline', 'reminders', 'fields', 'order', 'archived', 'source', 'seen', 'created_at', 'updated_at', 'completed_at', 'version'];
+export const FRONTMATTER_ORDER = ['space', 'assignee', 'status', 'priority', 'project', 'tags', 'when', 'deadline', 'reminders', 'fields', 'order', 'archived', 'source', 'org', 'seen', 'created_at', 'updated_at', 'completed_at', 'version'];
 const STEP_HEADINGS = ['שלבים', 'Steps'];
 const NOTES_HEADINGS = ['הערות', 'Notes'];
 
@@ -88,6 +88,8 @@ export function parseTask(markdown, id) {
     order: Number.isFinite(meta.order) ? meta.order : 0,
     archived: meta.archived === true || meta.archived === 'true',
     source: meta.source || 'dashboard',
+    // Linked to a team board (server/org-sync.js): { id, user, url, role, status, snap, … } — absent on personal tasks.
+    org: meta.org && typeof meta.org === 'object' && !Array.isArray(meta.org) ? meta.org : null,
     seen: meta.seen !== false && meta.seen !== 'false',
     created_at: meta.created_at || null,
     updated_at: meta.updated_at || null,
@@ -101,7 +103,7 @@ export function parseTask(markdown, id) {
 
 export function serializeTask(task) {
   // space/assignee only when set: tasks on the original work board keep their files exactly as before.
-  const meta = FRONTMATTER_ORDER.filter((key) => !(['space', 'assignee'].includes(key) && !task[key])).map((key) => `${key}: ${JSON.stringify(task[key] ?? null)}`).join('\n');
+  const meta = FRONTMATTER_ORDER.filter((key) => !(['space', 'assignee', 'org'].includes(key) && !task[key])).map((key) => `${key}: ${JSON.stringify(task[key] ?? null)}`).join('\n');
   const steps = task.steps.map((s) => `- [${s.done ? 'x' : ' '}] ${oneLine(s.text)}`).join('\n');
   return `---\n${meta}\n---\n\n# ${oneLine(task.title)}\n\n## שלבים\n${steps}\n\n## הערות\n${safeBlock(task.notes)}\n`;
 }

@@ -17,6 +17,7 @@ import { createAgentTools } from './agent.js';
 import { createEventStore } from './events.js';
 import { createAccess, loadPeople, scopeEvents, scopeTasks } from './access.js';
 import { createShoppingStore, DEPTS } from './shopping.js';
+import { createOrgSync } from './org-sync.js';
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8', '.md': 'text/markdown; charset=utf-8', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const send = (res, status, data, headers = {}) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers }); res.end(JSON.stringify(data)); };
@@ -71,7 +72,7 @@ export function buildVersion(dir = PUBLIC_DIR) {
   return hash.digest('hex').slice(0, 12);
 }
 
-export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people = loadPeople(root), notifier = createNotifiers({ defaultUser: people.defaultUser }), schedulerInterval, agentToken, agentTokens, authDisabled = false } = {}) {
+export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people = loadPeople(root), notifier = createNotifiers({ defaultUser: people.defaultUser }), schedulerInterval, agentToken, agentTokens, authDisabled = false, orgOptions = {} } = {}) {
   const access = createAccess(people);
   const VERSION = buildVersion(publicDir);
   // Shopping lists belong to the household: everyone who shares the home space. (A declaration, so the SSE filter
@@ -106,13 +107,15 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
   // One lock for tasks AND structure, so a status can't be removed while a task is being moved into it.
   const lock = createLock();
   const schemaStore = createSchemaStore(join(root, 'data'), { lock });
-  const taskStore = createTaskStore(root, { schemaStore, onChange: broadcast, lock, people });
+  let orgSync = null; // optional link to a team board (server/org-sync.js)
+  const taskStore = createTaskStore(root, { schemaStore, onChange: (e) => { broadcast(e); orgSync?.onChange(e); }, lock, people });
+  orgSync = createOrgSync({ root, taskStore, schemaStore, people, ...orgOptions });
   schemaStore.setUsage(taskStore.usage);
   const eventStore = createEventStore(root, { lock, taskStore, onChange: broadcast });
   const shopping = createShoppingStore(root, { lock, onChange: broadcast });
   const scheduler = createScheduler({ root, taskStore, schemaStore, eventStore, notifier, access, onEvent: broadcast, interval: schedulerInterval });
   const auth = createAuth({ root, agentToken, ...(agentTokens !== undefined && { agentTokens }), people, disabled: authDisabled, sendCode: (message, user) => notifier.send(message, { event_type: 'workboard.pairing', to: user }) });
-  const agentTools = createAgentTools({ taskStore, schemaStore, scheduler, eventStore, access, shopping });
+  const agentTools = createAgentTools({ taskStore, schemaStore, scheduler, eventStore, access, shopping, orgSync });
   /** Everything one request may touch, already narrowed to its person. */
   const ctxFor = (who) => {
     const sc = access.scope(who.user === undefined ? people.defaultUser : who.user);
@@ -215,7 +218,7 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
 
     if (p === '/api/bootstrap' && method === 'GET') {
       const [schema, tasks, activity, events, list] = await Promise.all([schemaStore.get(), taskView.list({ includeArchived: true }), taskView.activity({ limit: 30 }), eventView.list({ from: addDays(today(), -7) }), shopping.get(can, sc.user)]);
-      return send(res, 200, { schema: schemaFor(sc, schema), degraded: schemaStore.degraded(), tasks, activity, events, shopping: list, depts: DEPTS.map(({ words, ...d }) => d), ...access.describe(sc.user), actor, version: VERSION, locale: localeInfo(TZ), notifier: scheduler.status(sc.user ?? undefined), today: today(), device: who.session?.device || null });
+      return send(res, 200, { schema: schemaFor(sc, schema), degraded: schemaStore.degraded(), tasks, activity, events, shopping: list, depts: DEPTS.map(({ words, ...d }) => d), ...access.describe(sc.user), actor, version: VERSION, locale: localeInfo(TZ), notifier: scheduler.status(sc.user ?? undefined), today: today(), device: who.session?.device || null, org: { enabled: orgSync.configuredFor(sc.user ?? people.defaultUser), url: orgSync.url || null } });
     }
 
     if (p === '/api/sessions') {
@@ -266,8 +269,23 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
     hit = m(/^\/api\/tasks\/(\d+)$/);
     if (hit) {
       if (method === 'GET') return send(res, 200, await taskView.get(hit[1]));
-      if (method === 'PATCH') return send(res, 200, await taskView.update(hit[1], await body(req), opts));
+      if (method === 'PATCH') {
+        const { org_reason: reason, ...changes } = await body(req);
+        orgSync.setReason(hit[1], reason);
+        return send(res, 200, await taskView.update(hit[1], changes, opts));
+      }
       if (method === 'DELETE') return send(res, 200, await taskView.remove(hit[1], opts));
+    }
+
+    // ---- Team board link (optional) ----
+    if (p === '/api/org' && method === 'GET') return send(res, 200, await orgSync.status(sc.user ?? people.defaultUser));
+    if (p === '/api/org/sync' && method === 'POST') { await orgSync.pull(sc.user ?? people.defaultUser); return send(res, 200, await orgSync.status(sc.user ?? people.defaultUser)); }
+    hit = m(/^\/api\/tasks\/(\d+)\/org$/);
+    if (hit && method === 'POST') {
+      await taskView.get(hit[1]); // visibility check
+      const input = await body(req);
+      const team = await orgSync.expose(sc.user ?? people.defaultUser, hit[1], { reviewer: input.reviewer });
+      return send(res, 200, { task: await taskView.get(hit[1]), team });
     }
 
     hit = m(/^\/api\/tasks\/(\d+)\/steps$/);
@@ -359,7 +377,7 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
       return undefined;
     }
   });
-  return { server, scheduler, taskStore, schemaStore, eventStore, auth, shopping, access };
+  return { server, scheduler, taskStore, schemaStore, eventStore, auth, shopping, access, orgSync };
 }
 
 // Backwards-compatible helper used by tests.

@@ -100,6 +100,8 @@ Change one or more tasks in one call; each item is applied atomically and report
 | &nbsp;&nbsp;↳ `append_note` | string |  | Adds a line to the notes. |
 | &nbsp;&nbsp;↳ `done` | boolean |  |  |
 | &nbsp;&nbsp;↳ `archived` | boolean |  |  |
+| &nbsp;&nbsp;↳ `reason` | string |  | Why the deadline moves. Required when moving the deadline of a team-board task (marked 🏢): it is recorded there and shown to the reviewer. |
+| &nbsp;&nbsp;↳ `expose_to_org` | boolean |  | true = put this personal task on the team board (one way; it becomes a managed team task). Only when the person asks. |
 | &nbsp;&nbsp;↳ `add_tags` | array of string |  |  |
 | &nbsp;&nbsp;↳ `remove_tags` | array of string |  |  |
 | &nbsp;&nbsp;↳ `add_steps` | array of string |  |  |
