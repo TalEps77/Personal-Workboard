@@ -47,6 +47,9 @@ export const api = {
   sessions: () => request('/api/sessions'),
   revokeSession: (id) => request(`/api/sessions/${id}`, { method: 'DELETE' }),
   restoreSchema: () => request('/api/schema/restore', { method: 'POST', body: {} }),
+  exposeToOrg: (id) => request(`/api/tasks/${id}/org`, { method: 'POST', body: {} }),
+  orgStatus: () => request('/api/org'),
+  orgSync: () => request('/api/org/sync', { method: 'POST', body: {} }),
 };
 
 /** Live updates (agent edits, reminders firing) over Server-Sent Events; reconnects automatically. */

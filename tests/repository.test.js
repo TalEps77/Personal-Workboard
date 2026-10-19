@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseTask, serializeTask } from '../server/repository.js';
 
-const base = { id: '7', title: 'להכין הצעת מחיר', space: null, assignee: null, status: 'doing', priority: 'high', project: null, tags: ['לקוח'], when: '2026-10-12', deadline: null, reminders: [], fields: { contact: 'Avi' }, order: 1, archived: false, source: 'whatsapp', seen: false, created_at: '2026-10-08T10:00:00.000Z', updated_at: '2026-10-08T10:00:00.000Z', completed_at: null, version: 3, steps: [{ text: 'טיוטה', done: true }, { text: 'לשלוח', done: false }], notes: 'שורה 1\nשורה 2' };
+const base = { id: '7', title: 'להכין הצעת מחיר', space: null, assignee: null, status: 'doing', priority: 'high', project: null, tags: ['לקוח'], when: '2026-10-12', deadline: null, reminders: [], fields: { contact: 'Avi' }, order: 1, archived: false, source: 'whatsapp', org: null, seen: false, created_at: '2026-10-08T10:00:00.000Z', updated_at: '2026-10-08T10:00:00.000Z', completed_at: null, version: 3, steps: [{ text: 'טיוטה', done: true }, { text: 'לשלוח', done: false }], notes: 'שורה 1\nשורה 2' };
 
 test('task round-trips through readable Markdown with a checklist', () => {
   const md = serializeTask(base);
@@ -27,4 +27,10 @@ test('hand-edited files (unquoted YAML, English headings) still parse', () => {
   assert.equal(t.seen, false);
   assert.deepEqual(t.steps, [{ text: 'dial', done: true }, { text: 'follow up', done: false }]);
   assert.equal(t.notes, 'free text');
+});
+
+test('a team-board link (org) round-trips; personal tasks have none in the file', () => {
+  const linked = { ...base, org: { id: 12, user: 'me', role: 'responsible', status: 'doing', snap: { title: base.title } } };
+  assert.deepEqual(parseTask(serializeTask(linked), '7').org, linked.org);
+  assert.doesNotMatch(serializeTask(base), /^org:/m);
 });

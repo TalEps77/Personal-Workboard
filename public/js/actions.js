@@ -64,6 +64,13 @@ export const fail = (error) => toast(errorText(error), { tone: 'error', iconName
 
 // ---- Mutations: optimistic locally, then reconciled with the server's version ----
 export async function updateTask(id, changes, { silent = true, quiet = false } = {}) {
+  const current = state.tasks.get(id);
+  // A team-board task's due date only moves with a reason: it is recorded there and shown to the reviewer.
+  if (current?.org && !current.org.gone && changes.deadline !== undefined && current.deadline && changes.deadline !== current.deadline) {
+    const reason = prompt(gx`זו משימה ארגונית — למה היעד זז? (הסיבה נשמרת בלוח הצוות ונשלחת למבקר/ת)`);
+    if (!reason?.trim()) { putTask({ ...current }); return null; }
+    changes = { ...changes, org_reason: reason.trim() };
+  }
   const known = state.tasks.has(id);
   const handle = known ? beginWrite(id, changes) : null;
   try {

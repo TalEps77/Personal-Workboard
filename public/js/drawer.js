@@ -285,6 +285,27 @@ function workBar(task) {
   return h('div', { class: 'work-bar' }, h('div', { class: 'work-row' }, primary, waiting ? h('span', { class: 'muted small' }, `ממתין${task.fields?.with ? ` ל${task.fields.with}` : ''}`) : null), step, plan, effort);
 }
 
+/** The team-board link: who owns it there, and a way to open it — or to put a personal task on the team board. */
+function orgBlock(task) {
+  const o = task.org;
+  if (o) {
+    const role = o.role === 'responsible' ? gx`את/ה האחראי/ת` : o.role === 'reviewer' ? gx`את/ה המבקר/ת` : 'נרשמת לעדכונים';
+    return h('div', { class: ['org-block', o.gone && 'gone'] }, icon('users', 16),
+      h('div', { class: 'org-text' },
+        h('strong', {}, o.gone ? 'כבר לא אצלך בלוח הצוות' : `משימה ארגונית · ${role}`),
+        !o.gone ? h('div', { class: 'muted small' }, [o.role !== 'responsible' && o.responsible ? `אחראי/ת: ${o.responsible}` : null, o.role !== 'reviewer' && o.reviewer ? `מבקר/ת: ${o.reviewer}` : null, o.slips ? `היעד נדחה ${o.slips === 1 ? 'פעם אחת' : `${o.slips} פעמים`}` : null].filter(Boolean).join(' · ')) : null,
+        o.status === 'pending' && !o.gone ? h('div', { class: 'small org-pending' }, gx`ממתינה לאישור שלך — אפשר לקבל או לסרב בלוח הצוות או דרך הסוכן.`) : null),
+      o.url ? h('a', { class: 'btn small', href: o.url, target: '_blank', rel: 'noopener' }, icon('external', 14), 'בלוח הצוות') : null);
+  }
+  if (!state.org?.enabled || kindOfSpace(task) !== 'work' || task.archived) return null;
+  return h('div', { class: 'org-block expose' }, icon('users', 16),
+    h('div', { class: 'org-text' }, h('strong', {}, 'משימה אישית'), h('div', { class: 'muted small' }, 'אפשר להעלות אותה ללוח הצוות — אז היא הופכת למשימה מנוהלת (המבקר/ת: הממונה שלך).')),
+    h('button', { class: 'btn small', onclick: async () => {
+      if (!confirm('להעלות את המשימה ללוח הצוות? מאותו רגע היא משימה ארגונית מנוהלת, והממונה יראה אותה.')) return;
+      try { const r = await api.exposeToOrg(task.id); putTask(r.task); toast('המשימה עלתה ללוח הצוות', { tone: 'success', iconName: 'check' }); } catch (e) { fail(e); }
+    } }, 'העלאה ללוח הצוות'));
+}
+
 export function drawer(task) {
   if (!task) return null;
   if (!task.seen && !markedSeen.has(task.id)) { markedSeen.add(task.id); updateTask(task.id, { seen: true }, { quiet: true }); }
@@ -325,6 +346,7 @@ export function drawer(task) {
         h('button', { class: ['check', 'big', isDone(task) && 'is-done'], title: isDone(task) ? gx`החזר לפתוחות` : gx`סמן כבוצע`, onclick: () => updateTask(task.id, { status: isDone(task) ? state.schema.statuses.find((x) => x.category === 'todo')?.id || state.schema.statuses[0].id : state.schema.statuses.find((x) => x.category === 'done').id }) }, icon('check', 16)),
         title),
       workBar(task),
+      orgBlock(task),
       task.archived ? h('div', { class: 'banner' }, icon('archive', 14), 'המשימה בארכיון') : null,
       h('details', { class: 'props-wrap', open: !matchMedia('(max-width: 820px)').matches, dataset: { key: `props-${task.id}` } },
         h('summary', { class: 'props-summary' }, propsSummary(task), h('span', { class: 'props-edit' }, 'עריכה')),

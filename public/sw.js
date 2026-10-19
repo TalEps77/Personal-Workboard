@@ -1,6 +1,6 @@
 // Workboard service worker: makes the app installable and opens instantly (and offline, read-only) on the phone.
 // Strategy: network-first for everything we cache, so a deploy is picked up on the next load; cache is the fallback.
-const CACHE = 'workboard-v32';
+const CACHE = 'workboard-v33';
 // The page itself writes the last server-confirmed board here (see writeSnapshot in app.js); survives app updates.
 const SNAPSHOT = 'workboard-snapshot';
 const SHELL = ['/', '/index.html', '/css/app.css', '/js/app.js', '/js/api.js', '/js/actions.js', '/js/components.js', '/js/drawer.js', '/js/settings.js', '/js/store.js', '/js/util.js', '/js/views.js', '/js/timeline.js', '/js/motion.js', '/js/focus.js', '/js/schedule.js', '/js/shopping.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/apple-touch-icon.png', '/icons/favicon-64.png', '/fonts/heebo-hebrew-wght-normal.woff2', '/fonts/heebo-latin-wght-normal.woff2'];

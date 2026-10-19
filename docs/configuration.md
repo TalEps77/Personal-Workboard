@@ -59,6 +59,17 @@ Workboard does not talk to WhatsApp itself. It posts a JSON message to a webhook
 
 The request body is `{ "event_type": "workboard.reminder", "message": "…", … }`, with headers `X-Webhook-Signature` (hex HMAC-SHA256 of the raw body) and `X-Request-Id` (stable per occurrence, so a retry can be de-duplicated). Event types: `workboard.reminder`, `workboard.event`, `workboard.digest`, `workboard.pairing`, `workboard.test`.
 
+### Team board (optional)
+
+Connects each person's work space to a team board ([Workboard for teams](team-board.md)). Each person creates a **sync token** in the team board's Settings.
+
+| Variable | Default | Format | Meaning |
+|---|---|---|---|
+| `WORKBOARD_ORG_URL` | none | URL | The team board, e.g. `https://team-board.example`. |
+| `WORKBOARD_ORG_TOKEN` | none | token | Sync token of the **default person**. |
+| `WORKBOARD_ORG_TOKENS` | none | `person\|token,…` | Sync tokens of the other people. |
+| `WORKBOARD_ORG_POLL_SECONDS` | `60` | seconds | How often the team board is checked. |
+
 ### Compose variables
 
 Read by `compose.yml` from the file you pass with `--env-file`. They are not seen by the app.
