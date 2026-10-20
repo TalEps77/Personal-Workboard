@@ -80,7 +80,7 @@ export function buildVersion(dir = PUBLIC_DIR) {
   return hash.digest('hex').slice(0, 12);
 }
 
-export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people = loadPeople(root), notifier = createNotifiers({ defaultUser: people.defaultUser }), schedulerInterval, agentToken, agentTokens, authDisabled = false, orgOptions = {}, pocketSpec } = {}) {
+export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people = loadPeople(root), notifier = createNotifiers({ defaultUser: people.defaultUser }), schedulerInterval, agentToken, agentTokens, authDisabled = false, orgOptions = {}, pocketSpec, pocketOptions = {} } = {}) {
   const access = createAccess(people);
   const VERSION = buildVersion(publicDir);
   // Shopping lists belong to the household: everyone who shares the home space. (A declaration, so the SSE filter
@@ -123,7 +123,7 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
   const shopping = createShoppingStore(root, { lock, onChange: broadcast });
   const scheduler = createScheduler({ root, taskStore, schemaStore, eventStore, notifier, access, onEvent: broadcast, interval: schedulerInterval });
   const auth = createAuth({ root, agentToken, ...(agentTokens !== undefined && { agentTokens }), people, disabled: authDisabled, sendCode: (message, user) => notifier.send(message, { event_type: 'workboard.pairing', to: user }) });
-  const pocket = createPocketIntake({ root, taskStore, schemaStore, scheduler, people, ...(pocketSpec !== undefined && { spec: pocketSpec }) });
+  const pocket = createPocketIntake({ root, taskStore, schemaStore, scheduler, people, ...(pocketSpec !== undefined && { spec: pocketSpec }), ...pocketOptions });
   const agentTools = createAgentTools({ taskStore, schemaStore, scheduler, eventStore, access, shopping, orgSync });
   /** Everything one request may touch, already narrowed to its person. */
   const ctxFor = (who) => {

@@ -437,7 +437,7 @@ export function createAgentTools({ taskStore: rawTasks, schemaStore: rawSchema, 
         // Proposals from recordings wait for the person's yes — never file them on your own.
         const proposals = a.inbox.filter((t) => t.source === POCKET_SOURCE);
         const unsorted = a.inbox.filter((t) => t.source !== POCKET_SOURCE);
-        if (proposals.length) out.push(`\n*🎙️ ממתינות לאישור — הצעות מהקלטות Pocket* (${proposals.length}). אל תאשר ואל תמיין בלי אישור מפורש. כשמאשרים: status=next (או מה שנאמר), project, kind ותאריכים. כשדוחים: archived=true.`, ...proposals.map((t) => `• ${taskLine(t, schema, n)}`));
+        if (proposals.length) out.push(`\n*🎙️ ממתינות לאישור — הצעות מהקלטות Pocket* (${proposals.length}). אל תאשר ואל תמיין בלי אישור מפורש. כשמאשרים: status=next (או מה שנאמר), project, kind ותאריכים. כשדוחים: archived=true.`, ...proposals.slice(0, 15).map((t) => `• ${taskLine(t, schema, n)}`), ...(proposals.length > 15 ? [`… ועוד ${proposals.length - 15} — find_tasks {status:"review"}`] : []));
         if (unsorted.length) out.push(`\n📥 לא ממוינות: ${unsorted.map((t) => `#${t.id}`).join(', ')} — מיין אותן`);
         const failing = tasks.flatMap((t) => t.reminders.filter((r) => r.delivery_failed || (!r.done && r.last_error)).filter((r) => Date.parse(r.at) > n.getTime() - 3 * 86400_000 || !r.done).map((r) => ({ t, r })));
         if (failing.length) out.push(`\n*❌ תזכורות שלא נמסרו / ממתינות לניסיון חוזר* (${failing.length}) — ספר למשתמש, אל תניח שהגיעו:`, ...failing.map(({ t, r }) => `• #${t.id} ${t.title} [${r.id}] ${shortDay(local(r.at).date, n)} ${local(r.at).time} — ${reminderState(r)}`));
@@ -445,7 +445,7 @@ export function createAgentTools({ taskStore: rawTasks, schemaStore: rawSchema, 
         const since = n.getTime() - hours * 3600_000;
         const sent = log.filter((e) => e.ok && ['workboard.reminder', 'workboard.event', 'workboard.pocket'].includes(e.event_type) && Date.parse(e.at) >= since).slice(0, 8);
         out.push(sent.length ? `\n*📤 תזכורות שנשלחו לווטסאפ ב־${hours} השעות האחרונות* (החדשה ראשונה):` : `\nלא נשלחו תזכורות ב־${hours} השעות האחרונות.`);
-        for (const e of sent) out.push(e.event_type === 'workboard.pocket' ? `• ${local(e.at).time} → 🎙️ סיכום הקלטה "${e.title || ''}"${e.tasks?.length ? ` + משימות לאישור ${e.tasks.map((id) => `#${id}`).join(', ')}` : ''}` : e.event_type === 'workboard.event' ? `• ${local(e.at).time} → לו״ז: ${e.title || ''} [${e.event}]${e.task ? ` (#${e.task})` : ''}` : `• ${local(e.at).time} → #${e.task} ${e.title || ''} [${e.reminder}]`);
+        for (const e of sent) out.push(e.event_type === 'workboard.pocket' ? `• ${local(e.at).time} → 🎙️ סיכום הקלטה "${e.title || ''}"${e.tasks?.length ? ` + משימות לאישור ${e.tasks.slice(0, 10).map((id) => `#${id}`).join(', ')}${e.tasks.length > 10 ? ` ועוד ${e.tasks.length - 10}` : ''}` : ''}` : e.event_type === 'workboard.event' ? `• ${local(e.at).time} → לו״ז: ${e.title || ''} [${e.event}]${e.task ? ` (#${e.task})` : ''}` : `• ${local(e.at).time} → #${e.task} ${e.title || ''} [${e.reminder}]`);
         return out.join('\n');
       },
 
