@@ -1,7 +1,7 @@
 ---
 name: workboard
 description: The user's task board (Workboard) is the ONLY task system, covering work, personal and shared-home tasks, the schedule and the shared shopping lists. Use it for ANY task, to-do, reminder, schedule or shopping request on WhatsApp - capture tasks, "what's on my plate", update status, tick steps, set or snooze reminders, replies to reminders Workboard sent. Use the mcp_workboard_* tools; never write scripts or curl for normal work. Workboard owns reminders - never use agent cron or kanban for these.
-version: 1.0.0
+version: 1.1.0
 platforms: [linux]
 metadata:
   hermes:
@@ -111,6 +111,22 @@ Then:
 - "Remind me in an hour / tomorrow" -> `remind {task, reminder_id:"latest", at:"+1h"}`. This moves that reminder; never add a second one.
 - "Done" -> `update_tasks [{id, done:true}]`.
 - If two reminders went out within minutes of each other and it is unclear which, ask, naming both ids.
+
+## Recordings: proposals awaiting approval
+
+If the board has Pocket set up (docs/pocket.md), each recording's action items arrive as **proposals**: status
+`review` (or the inbox), source `pocket`, notes naming the recording. The user gets the summary and the ids on
+WhatsApp straight from Workboard, so **that message is not in your transcript.** `board` lists the open proposals
+in their own section and shows the sent "🎙️ recording summary" line with its ids.
+
+- Never approve or file a proposal on your own. The user decides.
+- "Approve all" / "approve 12, 14": file each one by the usual rules. Set status `next` (or what they say), project,
+  `kind`, `with` and dates. Pocket's due date is already in `deadline`, so check that it makes sense. Reply one line
+  per task.
+- "Not 13" / "not relevant": `archived: true`, not done.
+- A correction ("13 is for home", "12 by Sunday") applies the correction and approves that task.
+- If a proposal duplicates an open task, say so. Archive the proposal and add a note to the existing task.
+- The space is a guess from the recording time (work hours = work). Move the task if its content says otherwise.
 
 ## You file every task: the user doesn't sort
 

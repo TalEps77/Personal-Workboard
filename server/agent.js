@@ -11,6 +11,7 @@ import { local } from './time.js';
 import { DEFAULT_LEAD, EVENT_KINDS, freeGaps, leadOf } from './events.js';
 import { EFFORTS, KINDS, effortFrom, effortOfTask, focusList, kindFrom, kindOfTask } from '../public/js/focus.js';
 import { DEPTS } from './shopping.js';
+import { POCKET_SOURCE } from './pocket.js';
 
 const PROTOCOL = '2025-06-18';
 const SUPPORTED = ['2025-06-18', '2025-03-26', '2024-11-05'];
@@ -433,14 +434,18 @@ export function createAgentTools({ taskStore: rawTasks, schemaStore: rawSchema, 
           for (const d of [...byDay.keys()].sort()) out.push(`• ${shortDay(d, n)}: ${byDay.get(d).map((t) => `#${t.id} ${t.title.length > 28 ? `${t.title.slice(0, 27)}…` : t.title}`).join(' | ')}`);
         }
         if (a.reminders.length) out.push(`\n*🔔 תזכורות שעוד יישלחו היום*`, ...a.reminders.map(({ task, reminder }) => `• ${local(reminder.at).time} #${task.id} ${task.title} [${reminder.id}]`));
-        if (a.inbox.length) out.push(`\n📥 לא ממוינות: ${a.inbox.map((t) => `#${t.id}`).join(', ')} — מיין אותן`);
+        // Proposals from recordings wait for the person's yes — never file them on your own.
+        const proposals = a.inbox.filter((t) => t.source === POCKET_SOURCE);
+        const unsorted = a.inbox.filter((t) => t.source !== POCKET_SOURCE);
+        if (proposals.length) out.push(`\n*🎙️ ממתינות לאישור — הצעות מהקלטות Pocket* (${proposals.length}). אל תאשר ואל תמיין בלי אישור מפורש. כשמאשרים: status=next (או מה שנאמר), project, kind ותאריכים. כשדוחים: archived=true.`, ...proposals.map((t) => `• ${taskLine(t, schema, n)}`));
+        if (unsorted.length) out.push(`\n📥 לא ממוינות: ${unsorted.map((t) => `#${t.id}`).join(', ')} — מיין אותן`);
         const failing = tasks.flatMap((t) => t.reminders.filter((r) => r.delivery_failed || (!r.done && r.last_error)).filter((r) => Date.parse(r.at) > n.getTime() - 3 * 86400_000 || !r.done).map((r) => ({ t, r })));
         if (failing.length) out.push(`\n*❌ תזכורות שלא נמסרו / ממתינות לניסיון חוזר* (${failing.length}) — ספר למשתמש, אל תניח שהגיעו:`, ...failing.map(({ t, r }) => `• #${t.id} ${t.title} [${r.id}] ${shortDay(local(r.at).date, n)} ${local(r.at).time} — ${reminderState(r)}`));
         if (!scheduler.status().configured) out.push('\n⚠️ שליחת תזכורות לווטסאפ לא מוגדרת בשרת — תזכורות לא יישלחו.');
         const since = n.getTime() - hours * 3600_000;
-        const sent = log.filter((e) => e.ok && ['workboard.reminder', 'workboard.event'].includes(e.event_type) && Date.parse(e.at) >= since).slice(0, 8);
+        const sent = log.filter((e) => e.ok && ['workboard.reminder', 'workboard.event', 'workboard.pocket'].includes(e.event_type) && Date.parse(e.at) >= since).slice(0, 8);
         out.push(sent.length ? `\n*📤 תזכורות שנשלחו לווטסאפ ב־${hours} השעות האחרונות* (החדשה ראשונה):` : `\nלא נשלחו תזכורות ב־${hours} השעות האחרונות.`);
-        for (const e of sent) out.push(e.event_type === 'workboard.event' ? `• ${local(e.at).time} → לו״ז: ${e.title || ''} [${e.event}]${e.task ? ` (#${e.task})` : ''}` : `• ${local(e.at).time} → #${e.task} ${e.title || ''} [${e.reminder}]`);
+        for (const e of sent) out.push(e.event_type === 'workboard.pocket' ? `• ${local(e.at).time} → 🎙️ סיכום הקלטה "${e.title || ''}"${e.tasks?.length ? ` + משימות לאישור ${e.tasks.map((id) => `#${id}`).join(', ')}` : ''}` : e.event_type === 'workboard.event' ? `• ${local(e.at).time} → לו״ז: ${e.title || ''} [${e.event}]${e.task ? ` (#${e.task})` : ''}` : `• ${local(e.at).time} → #${e.task} ${e.title || ''} [${e.reminder}]`);
         return out.join('\n');
       },
 

@@ -336,6 +336,7 @@ export function drawer(task) {
       h('span', { class: 'grabber', 'aria-hidden': 'true' }),
       h('span', { class: 'row-id num' }, `#${task.id}`),
       task.source === 'whatsapp' ? h('span', { class: 'pill c-green', title: 'נוצרה דרך WhatsApp' }, icon('chat', 12), 'WhatsApp') : null,
+      task.source === 'pocket' ? h('span', { class: 'pill c-amber', title: 'הצעה מסיכום הקלטה ב־Pocket' }, icon('sparkles', 12), 'Pocket') : null,
       h('span', { class: 'muted small' }, `נוצרה ${relative(task.created_at)}`),
       h('span', { class: 'spacer' }),
       h('button', { class: 'icon-btn', title: task.archived ? gx`החזר מהארכיון` : gx`העבר לארכיון`, onclick: () => archiveTask(task) }, icon('archive', 16)),

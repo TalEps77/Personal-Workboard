@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Pocket recorder intake (`WORKBOARD_POCKET`, `POST /hooks/pocket/<person>`): action items from a recording's summary
+  become proposals in the `review` status and the summary goes to WhatsApp. `board` lists the proposals separately so
+  the agent waits for approval. Signed and exactly-once, and the transcript is never stored. See docs/pocket.md.
+- Requests that arrive through Tailscale Funnel can reach only `/hooks/*`.
 - Optional team-board link (`WORKBOARD_ORG_URL` + per-person sync tokens): tasks you are responsible for or review on a
   team board are mirrored into your work space and edits go back; a deadline move carries a reason; a personal task
   can be put on the team board. See docs/team-board.md.

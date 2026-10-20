@@ -9,11 +9,11 @@ export const AGENT_TOKEN = 'test-hermes-token';
  * Boots an isolated board with a fake notifier. `call()` authenticates like the real clients:
  * actor 'agent' → the agent bearer token; otherwise → a paired dashboard session cookie; `anon: true` → no credentials.
  */
-export async function boot({ notifier, orgOptions } = {}) {
+export async function boot({ notifier, orgOptions, pocketSpec } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'workboard-test-'));
   const sent = [];
   const fake = notifier || { configured: true, send: async (message, meta) => { sent.push({ message, meta }); } };
-  const app = createApp({ root, notifier: fake, schedulerInterval: 1e9, agentToken: AGENT_TOKEN, ...(orgOptions && { orgOptions }) });
+  const app = createApp({ root, notifier: fake, schedulerInterval: 1e9, agentToken: AGENT_TOKEN, ...(orgOptions && { orgOptions }), ...(pocketSpec !== undefined && { pocketSpec }) });
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.server.address().port}`;
   const session = await app.auth.createSessionForTests();
