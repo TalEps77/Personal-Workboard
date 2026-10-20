@@ -64,6 +64,8 @@ function toDate(v) {
 function normalizeItem(x) {
   if (typeof x === 'string') x = { title: x };
   if (!x || typeof x !== 'object') return null;
+  // Pocket's real items repeat most fields under `metadata` (and keep some only there, e.g. dueDate, context).
+  if (x.metadata && typeof x.metadata === 'object') x = { ...x.metadata, ...Object.fromEntries(Object.entries(x).filter(([, v]) => v !== null && v !== undefined && v !== '')) };
   const title = first(x.title, x.text, x.task, x.label, x.action, x.content, x.name, x.description).replace(/\s+/g, ' ').slice(0, 200);
   if (!title) return null;
   const context = first(x.context, x.details, x.description, x.notes);
@@ -71,10 +73,10 @@ function normalizeItem(x) {
   return {
     key: x.id ? `id:${x.id}` : `t:${createHash('sha1').update(norm(title)).digest('hex').slice(0, 12)}`,
     title,
-    done: x.completed === true || x.done === true || x.isCompleted === true || ['done', 'completed', 'complete', 'closed'].includes(status),
+    done: x.completed === true || x.done === true || x.isCompleted === true || x.is_completed === true || ['done', 'completed', 'complete', 'closed'].includes(status),
     due: toDate(x.dueDate ?? x.due_date ?? x.due ?? x.deadline),
     priority: String(x.priority || '').toLowerCase() || null,
-    assignee: first(x.assignee, x.owner, x.assignedTo, x.assigned_to),
+    assignee: ((a) => (/^(me|self|i|אני)$/i.test(a) ? '' : a))(first(x.assignee, x.owner, x.assignedTo, x.assigned_to)), // "me" = the recorder's owner
     context: context && norm(context) !== norm(title) ? context.slice(0, 600) : '',
   };
 }
