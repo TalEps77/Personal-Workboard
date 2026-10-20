@@ -143,6 +143,28 @@ test('pocket: funnel traffic only reaches the hooks', async () => {
   } finally { await b.close(); }
 });
 
+test('pocket: the real payload shape (flat summarizations array, fields under metadata)', () => {
+  const info = extractPocket({
+    event: 'summary.completed',
+    recording: { id: 'r2', title: 'בדיקה', duration: 40, recordingAt: '2026-10-20T15:59:58.000Z' },
+    summarizations: [{
+      id: 's', summarizationId: 's2', settings: { language: 'Hebrew' }, summary: { markdown: 'סיכום קצר.' }, createdAt: '2026-10-20T16:01:00Z',
+      actionItems: [
+        { id: 'v3_a', title: 'לשלוח מצגת', task: 'לשלוח מצגת', description: 'הקשר', priority: 'medium', status: 'TODO', assignee: 'me', isCompleted: false, metadata: { id: 'v3_a', label: 'לשלוח מצגת', context: 'הקשר', dueDate: '2026-10-22T09:00:00.000Z', assignee: 'me', isCompleted: false } },
+        { id: 'v3_b', title: 'כבר בוצע', status: 'DONE', metadata: { is_completed: true } },
+        { id: 'v3_c', title: 'לבקש מדני', assignee: null, metadata: { assignee: 'Dani', dueDate: null } },
+      ],
+    }],
+  });
+  assert.equal(info.summary, 'סיכום קצר.');
+  assert.equal(info.minutes, 1);
+  const [a, b, c] = info.items;
+  assert.deepEqual([a.key, a.title, a.due, a.assignee, a.context, a.done], ['id:v3_a', 'לשלוח מצגת', '2026-10-22', '', 'הקשר', false]);
+  assert.equal(b.done, true);
+  assert.equal(c.assignee, 'Dani');
+  assert.equal(c.due, null);
+});
+
 test('pocket: payload parsing is tolerant; the space follows the work week', () => {
   const info = extractPocket({
     recording: { id: 'r', title: 'x' },
