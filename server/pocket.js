@@ -71,17 +71,22 @@ function normalizeItem(x) {
   if (!x || typeof x !== 'object') return null;
   // Pocket's real items repeat most fields under `metadata` (and keep some only there, e.g. dueDate, context).
   if (x.metadata && typeof x.metadata === 'object') x = { ...x.metadata, ...Object.fromEntries(Object.entries(x).filter(([, v]) => v !== null && v !== undefined && v !== '')) };
-  const title = first(x.title, x.text, x.task, x.label, x.action, x.content, x.name, x.description).replace(/\s+/g, ' ').slice(0, 200);
+  const title = first(x.title, x.task, x.action, x.payload?.reminder?.title, x.text, x.label, x.content, x.name, x.description).replace(/\s+/g, ' ').slice(0, 200);
   if (!title) return null;
   const context = first(x.context, x.details, x.description, x.notes);
   const status = String(x.status || '').toLowerCase();
+  // The webhook and the API number items differently (ids are per recording); globalActionItemId is shared by both.
+  const keys = [x.globalActionItemId && `g:${x.globalActionItemId}`, x.id && `id:${x.id}`].filter(Boolean);
+  if (!keys.length) keys.push(`t:${createHash('sha1').update(norm(title)).digest('hex').slice(0, 12)}`);
   return {
-    key: x.id ? `id:${x.id}` : `t:${createHash('sha1').update(norm(title)).digest('hex').slice(0, 12)}`,
+    key: keys[0],
+    keys,
     title,
     done: x.completed === true || x.done === true || x.isCompleted === true || x.is_completed === true || ['done', 'completed', 'complete', 'closed'].includes(status),
     due: toDate(x.dueDate ?? x.due_date ?? x.due ?? x.deadline),
     priority: String(x.priority || '').toLowerCase() || null,
-    assignee: ((a) => (/^(me|self|i|אני)$/i.test(a) ? '' : a))(first(x.assignee, x.owner, x.assignedTo, x.assigned_to)), // "me" = the recorder's owner
+    // "me" = the recorder's owner; "Other" = someone else, unnamed.
+    assignee: ((a) => (/^(me|self|i|אני)$/i.test(a) ? '' : /^other$/i.test(a) ? 'גורם אחר' : a))(first(x.assignee, x.owner, x.assignedTo, x.assigned_to)),
     context: context && norm(context) !== norm(title) ? context.slice(0, 600) : '',
   };
 }
@@ -95,7 +100,7 @@ export function extractPocket(payload = {}) {
   const stamp = (s) => Date.parse(s.updatedAt || s.completedAt || s.createdAt || 0) || 0;
   const latest = (finished.length ? finished : all).sort((a, b) => stamp(b) - stamp(a))[0] || {};
   const v2 = latest.v2 && typeof latest.v2 === 'object' ? latest.v2 : latest;
-  const items = firstArray(v2.actionItems, v2.action_items, v2.actions, v2.tasks, v2.summary?.actionItems, v2.summary?.action_items, latest.actionItems, payload.actionItems, payload.action_items)
+  const items = firstArray(v2.actionItems?.actions, v2.actionItems, v2.action_items, v2.actions, v2.tasks, v2.summary?.actionItems, v2.summary?.action_items, latest.actionItems, payload.actionItems, payload.action_items)
     .map(normalizeItem).filter(Boolean);
   const seen = new Set();
   return {
@@ -176,11 +181,13 @@ export function createPocketIntake({
       const stamp = info.at ? `${local(info.at).d}.${local(info.at).m} ${local(info.at).time}` : '';
       const created = [];
       for (const item of info.items) {
-        if (item.done || rec.items[item.key]) continue;
+        const known = item.keys.find((k) => rec.items[k]);
+        if (known) { for (const k of item.keys) rec.items[k] ||= rec.items[known]; continue; }
+        if (item.done) continue;
         const notes = [`🎙️ מתוך ההקלטה "${info.title}"${stamp ? ` (${stamp})` : ''}`, item.context, item.assignee && `אחראי לפי ההקלטה: ${item.assignee}`].filter(Boolean).join('\n');
         const priority = PRIORITY[item.priority] && schema.priorities.some((p) => p.id === PRIORITY[item.priority]) ? PRIORITY[item.priority] : undefined;
         const task = await taskStore.create({ title: item.title, status, space, source: POCKET_SOURCE, notes, ...(item.due && { deadline: item.due }), ...(priority && { priority }) }, { actor: POCKET_SOURCE });
-        rec.items[item.key] = task.id;
+        for (const k of item.keys) rec.items[k] = task.id;
         created.push(task);
       }
       await save(state);
@@ -196,7 +203,7 @@ export function createPocketIntake({
     if (!rec) return [];
     const status = reviewStatus(await schemaStore.get()).id;
     const archived = [];
-    for (const taskId of Object.values(rec.items)) {
+    for (const taskId of new Set(Object.values(rec.items))) {
       const task = await taskStore.get(taskId).catch(() => null);
       if (task && !task.archived && task.status === status && task.source === POCKET_SOURCE) { await taskStore.update(taskId, { archived: true }, { actor: POCKET_SOURCE }); archived.push(taskId); }
     }
