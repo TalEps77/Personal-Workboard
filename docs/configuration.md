@@ -77,6 +77,9 @@ Meeting action items from a [Pocket](https://heypocketai.com) recorder arrive as
 | Variable | Default | Format | Meaning |
 |---|---|---|---|
 | `WORKBOARD_POCKET` | none | `person\|secret,…` | Pocket webhook signing secret per person. Enables `POST /hooks/pocket/<person>`. |
+| `WORKBOARD_POCKET_API_KEYS` | none | `person\|pk_…,…` | Pocket API key per person (Settings → Developer). Enables polling. The first run imports the history. |
+| `WORKBOARD_POCKET_POLL_MINUTES` | `10` | minutes | How often the API is checked. |
+| `WORKBOARD_POCKET_BACKFILL_DAYS` | all | days | Limits the first import to the last N days. |
 
 ### Compose variables
 

@@ -20,7 +20,19 @@ the reply.
 - **Privacy:** the transcript is never stored or forwarded. The last payload without the transcript is kept in
   `data/runtime/pocket-last.json` for troubleshooting, because Pocket doesn't document the inside of a summary.
 
-## Setup
+## Two ways in: webhook and polling
+
+Both are optional, and they can run together because they share the same ledger, so nothing is filed twice.
+
+- **Webhook** (`WORKBOARD_POCKET`): instant, but Workboard needs a public URL (below).
+- **Polling** (`WORKBOARD_POCKET_API_KEYS`): no public URL needed. Every `WORKBOARD_POCKET_POLL_MINUTES` (10)
+  Workboard lists the last three days of recordings and reads any that are new or changed, without their
+  transcripts. **The first run imports the whole history**, or the last `WORKBOARD_POCKET_BACKFILL_DAYS`. It does
+  this quietly: one message gives the totals, instead of one per recording. Later runs send the usual message per
+  recording. A recording whose summary is still being processed is picked up once it is ready. The state (and the
+  last error) is in `data/pocket.json` under `poll`.
+
+## Setup (webhook)
 
 1. Workboard must be reachable from the internet at `/hooks/pocket/<person>` **only**. With Tailscale:
 

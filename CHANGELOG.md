@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pocket polling (`WORKBOARD_POCKET_API_KEYS`): no public URL needed. The first run imports the history with one
+  summary message. Webhook and polling share one ledger. In `board`, long proposal lists are capped.
 - Pocket recorder intake (`WORKBOARD_POCKET`, `POST /hooks/pocket/<person>`): action items from a recording's summary
   become proposals in the `review` status and the summary goes to WhatsApp. `board` lists the proposals separately so
   the agent waits for approval. Signed and exactly-once, and the transcript is never stored. See docs/pocket.md.

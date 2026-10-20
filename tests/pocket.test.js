@@ -182,3 +182,97 @@ test('pocket: payload parsing is tolerant; the space follows the work week', () 
   assert.equal(pocketSpace(people, 'tal', '2026-10-17T08:00:00Z'), 'l', 'Saturday');
   assert.equal(pocketSpace(people, 'tal', null), 'w');
 });
+
+// A fake Pocket public API: list (paged) + details, shaped like the documented responses.
+function fakeApi(recordings, { pageSize = 2 } = {}) {
+  const calls = [];
+  const json = (status, body) => ({ ok: status < 400, status, headers: new Headers(), json: async () => body });
+  const fetchImpl = async (url, opts) => {
+    const u = new URL(url);
+    calls.push(u.pathname + u.search);
+    if (opts.headers.authorization !== 'Bearer pk_test') return json(401, { success: false, error: 'bad key', data: null });
+    const detail = u.pathname.match(/\/public\/recordings\/([^/]+)$/);
+    if (detail) {
+      const r = recordings.find((x) => x.id === decodeURIComponent(detail[1]));
+      return r ? json(200, { success: true, data: { ...r, transcript: { segments: [{ text: 'סוד' }] } } }) : json(404, { success: false, data: null });
+    }
+    const page = Number(u.searchParams.get('page')) || 1;
+    const start = u.searchParams.get('start_date');
+    const all = recordings.filter((r) => !start || r.recording_at.slice(0, 10) >= start);
+    const data = all.slice((page - 1) * pageSize, page * pageSize).map(({ summarizations, ...r }) => r);
+    return json(200, { success: true, data, pagination: { page, has_more: page * pageSize < all.length } });
+  };
+  return { fetchImpl, calls };
+}
+const apiRec = (id, at, items, extra = {}) => ({
+  id, title: `הקלטה ${id}`, recording_at: at, created_at: at, updated_at: at, duration: 120, state: 'completed',
+  summarizations: items === null ? null : [{ id: `s-${id}`, summary: { markdown: `סיכום ${id}` }, actionItems: items.map((t, i) => (typeof t === 'string' ? { id: `${id}-${i}`, title: t, status: 'TODO', metadata: { dueDate: null } } : t)) }],
+  ...extra,
+});
+
+test('pocket polling: first run imports the history quietly with one message; later runs notify per recording', async () => {
+  const day = (n) => new Date(Date.now() - n * 86400_000).toISOString();
+  const recs = [
+    apiRec('old', day(40), ['משימה ישנה', { id: 'old-done', title: 'בוצעה', metadata: { isCompleted: true } }]),
+    apiRec('mid', day(10), ['משימה א', 'משימה ב']),
+    apiRec('busy', day(1), null), // still processing: no summary yet
+  ];
+  const { fetchImpl, calls } = fakeApi(recs);
+  const b = await boot({ pocketSpec: '', pocketOptions: { apiSpec: 'me|pk_test', fetchImpl, pauseMs: 0, retryMs: 0 } });
+  try {
+    const [first] = await b.app.pocket.poll();
+    assert.equal(first.backfill, true);
+    assert.equal(first.imported, 2);
+    assert.equal(first.tasks, 3, 'completed items are skipped');
+    assert.ok(calls.some((c) => c.includes('page=2')), 'follows pagination');
+    assert.ok(calls.every((c) => !c.includes('start_date')), 'the first run reads the whole history');
+    assert.equal(b.sent.length, 1, 'one message for the whole import');
+    assert.match(b.sent[0].message, /ייבוא מ־Pocket הושלם/);
+    assert.match(b.sent[0].message, /2 הקלטות/);
+    assert.match(b.sent[0].message, /3 משימות/);
+    const tasks = (await b.call('/api/tasks')).body.items;
+    assert.equal(tasks.length, 3);
+    assert.ok(tasks.every((t) => t.source === 'pocket' && t.status === 'inbox'));
+
+    // Nothing changed → nothing happens, and no detail calls for known recordings.
+    calls.length = 0;
+    const [second] = await b.app.pocket.poll();
+    assert.equal(second.backfill, false);
+    assert.ok(calls.some((c) => c.includes('start_date=')), 'later runs look at the last days only');
+    assert.equal(calls.filter((c) => /recordings\/(old|mid)/.test(c)).length, 0);
+    assert.equal(b.sent.length, 1);
+
+    // The busy recording finishes, and a new one arrives: one normal message each.
+    Object.assign(recs[2], apiRec('busy', recs[2].recording_at, ['לסיים את הדוח']), { updated_at: new Date().toISOString() });
+    recs.push(apiRec('new', day(0), []));
+    await b.app.pocket.poll();
+    assert.equal(b.sent.length, 3);
+    assert.ok(b.sent.some((x) => /לסיים את הדוח/.test(x.message)));
+    assert.ok(b.sent.some((x) => /לא זוהו משימות/.test(x.message)));
+    assert.equal((await b.call('/api/tasks')).body.items.length, 4);
+  } finally { await b.close(); }
+});
+
+test('pocket polling and the webhook share one ledger: nothing is filed twice', async () => {
+  const at = new Date(Date.now() - 3600_000).toISOString();
+  const recs = [apiRec('rec_1', at, [{ id: 'ai_1', title: 'לשלוח לדני את המסמך', metadata: {} }])];
+  const { fetchImpl } = fakeApi(recs);
+  const b = await boot({ pocketSpec: `me|${SECRET}`, pocketOptions: { apiSpec: 'me|pk_test', fetchImpl, pauseMs: 0, retryMs: 0 } });
+  try {
+    assert.equal((await deliver(b, recording())).body.created.length, 1);
+    await until(() => b.sent.length === 1);
+    const [r] = await b.app.pocket.poll();
+    assert.equal(r.tasks, 0);
+    assert.equal((await b.call('/api/tasks')).body.items.length, 1);
+  } finally { await b.close(); }
+});
+
+test('pocket polling: a bad key is reported, not thrown', async () => {
+  const { fetchImpl } = fakeApi([]);
+  const b = await boot({ pocketSpec: '', pocketOptions: { apiSpec: 'me|pk_wrong', fetchImpl, pauseMs: 0 } });
+  try {
+    const [r] = await b.app.pocket.poll();
+    assert.match(r.error, /401/);
+    assert.equal(b.sent.length, 0);
+  } finally { await b.close(); }
+});

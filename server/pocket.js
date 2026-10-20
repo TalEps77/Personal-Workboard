@@ -4,8 +4,13 @@
 // person gets one WhatsApp message with the summary and the new task ids. Nothing is filed for real until the person
 // approves — their agent does that from the reply (the `board` tool lists these proposals separately).
 //
-// Config: WORKBOARD_POCKET="person|secret,…" — the signing secret Pocket shows once when you create a webhook in the
-// Pocket app. Webhook URL: POST <public url>/hooks/pocket/<person>. The transcript is never stored.
+// Two ways in, sharing one exactly-once ledger (data/pocket.json), so both can run together:
+//   webhook  WORKBOARD_POCKET="person|secret,…" — the signing secret Pocket shows once when you create a webhook in the
+//            Pocket app. URL: POST <public url>/hooks/pocket/<person>. Instant, but needs a public URL.
+//   polling  WORKBOARD_POCKET_API_KEYS="person|pk_…,…" — an API key from Pocket → Settings → Developer. Every
+//            WORKBOARD_POCKET_POLL_MINUTES (10) the last few days are checked. The first run imports the whole history
+//            (or WORKBOARD_POCKET_BACKFILL_DAYS) quietly and sends one message with the totals.
+// The transcript is never stored.
 // Signature (Pocket docs): X-HeyPocket-Signature = hex HMAC-SHA256(secret, `${X-HeyPocket-Timestamp}.${rawBody}`).
 // Delivery is at-least-once, so every action item is remembered per recording (data/pocket.json) and never filed twice.
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
@@ -96,10 +101,11 @@ export function extractPocket(payload = {}) {
   return {
     id: rec.id ? String(rec.id) : null,
     title: first(rec.title, v2.title, latest.title) || 'הקלטה',
-    at: rec.recordingAt || rec.createdAt || null,
+    at: rec.recordingAt || rec.recording_at || rec.createdAt || rec.created_at || null,
     minutes: Number.isFinite(rec.duration) ? Math.max(1, Math.round(rec.duration / 60)) : null,
     summary: first(v2.summary, v2.overview, v2.shortSummary, v2.brief, v2.tldr, latest.summary),
     items: items.filter((x) => (seen.has(x.key) ? false : seen.add(x.key))),
+    ready: Boolean(finished.length && (first(v2.summary, latest.summary) || items.length)),
   };
 }
 
@@ -116,8 +122,14 @@ export function pocketSpace(people, user, at) {
 const PRIORITY = { urgent: 'urgent', critical: 'urgent', high: 'high', medium: 'normal', normal: 'normal', low: 'low' };
 export const reviewStatus = (schema) => schema.statuses.find((s) => s.id === 'review' && s.category === 'inbox') || schema.statuses.find((s) => s.category === 'inbox');
 
-export function createPocketIntake({ root, taskStore, schemaStore, scheduler, people, spec = process.env.WORKBOARD_POCKET || '', retryMs = 90_000 }) {
+export function createPocketIntake({
+  root, taskStore, schemaStore, scheduler, people, spec = process.env.WORKBOARD_POCKET || '', retryMs = 90_000,
+  apiSpec = process.env.WORKBOARD_POCKET_API_KEYS || '', apiBase = process.env.WORKBOARD_POCKET_API_URL || 'https://public.heypocketai.com/api/v1',
+  pollMinutes = Number(process.env.WORKBOARD_POCKET_POLL_MINUTES) || 10, backfillDays = Number(process.env.WORKBOARD_POCKET_BACKFILL_DAYS) || 0,
+  fetchImpl = fetch, pauseMs = 300,
+}) {
   const secrets = parsePocketSpec(spec);
+  const apiKeys = parsePocketSpec(apiSpec);
   const path = join(root, 'data', 'pocket.json');
   const lock = createLock();
   const load = async () => { try { return JSON.parse(await readFile(path, 'utf8')); } catch { return { recordings: {} }; } };
@@ -150,14 +162,14 @@ export function createPocketIntake({ root, taskStore, schemaStore, scheduler, pe
     return result;
   }
 
-  async function ingest(user, payload) {
+  async function ingest(user, payload, { updated } = {}) {
     const info = extractPocket(payload);
     if (!info.id) throw Object.assign(new Error('Payload has no recording id'), { status: 400, code: 'invalid' });
     return lock(async () => {
       const state = await load();
       const rec = state.recordings[info.id] ||= { user, items: {}, received: new Date().toISOString() };
       const firstTime = !rec.summarized;
-      Object.assign(rec, { title: info.title, at: info.at, summarized: true });
+      Object.assign(rec, { title: info.title, at: info.at, summarized: true, ...(updated && { updated }) });
       const schema = await schemaStore.get();
       const status = reviewStatus(schema).id;
       const space = pocketSpace(people, user, info.at);
@@ -191,7 +203,80 @@ export function createPocketIntake({ root, taskStore, schemaStore, scheduler, pe
     return archived;
   }
 
+  // ---- Polling the public API ----
+  const sleep = (ms) => new Promise((r) => { setTimeout(r, ms).unref?.(); });
+  const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+  async function api(key, path) {
+    for (let attempt = 0; ; attempt += 1) {
+      const res = await fetchImpl(`${apiBase}${path}`, { headers: { authorization: `Bearer ${key}`, accept: 'application/json' }, signal: AbortSignal.timeout(30_000) });
+      if (res.status === 429 && attempt < 3) { await sleep((Number(res.headers.get('retry-after')) || 30 * (attempt + 1)) * 1000); continue; }
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body || body.success === false) throw new Error(`Pocket API ${path.split('?')[0]} → ${res.status} ${body?.error_code || body?.error || ''}`.trim());
+      return body;
+    }
+  }
+  async function listRecordings(key, startDate) {
+    const out = [];
+    for (let page = 1; page <= 100; page += 1) {
+      const body = await api(key, `/public/recordings?limit=100&page=${page}${startDate ? `&start_date=${startDate}` : ''}`);
+      out.push(...(Array.isArray(body.data) ? body.data : []));
+      if (!body.pagination?.has_more) break;
+    }
+    return out;
+  }
+
+  async function pollUser(user, key) {
+    const state = await load();
+    const backfill = !state.poll?.[user]?.since;
+    const startDate = backfill ? (backfillDays ? day(Date.now() - backfillDays * 86400_000) : null) : day(Date.now() - 3 * 86400_000);
+    const list = (await listRecordings(key, startDate)).filter((r) => r?.id)
+      .sort((a, b) => String(a.recording_at || a.created_at || '').localeCompare(String(b.recording_at || b.created_at || '')));
+    const imported = { recordings: 0, tasks: [] };
+    for (const r of list) {
+      const known = (await load()).recordings[r.id];
+      if (known?.summarized && (!r.updated_at || known.updated === r.updated_at)) continue;
+      const detail = (await api(key, `/public/recordings/${encodeURIComponent(r.id)}?include_transcript=false`)).data || {};
+      const { transcript, ...recording } = { ...r, ...detail };
+      const payload = { event: 'summary.completed', recording, summarizations: recording.summarizations };
+      if (!extractPocket(payload).ready) continue; // still processing, or nothing to summarize
+      const { info, created, firstTime } = await ingest(user, payload, { updated: r.updated_at });
+      if (backfill) { if (firstTime) imported.recordings += 1; imported.tasks.push(...created); }
+      else if (firstTime || created.length) await notify(user, info, created, firstTime);
+      await sleep(pauseMs);
+    }
+    await lock(async () => { const s = await load(); s.poll = { ...s.poll, [user]: { since: s.poll?.[user]?.since || new Date().toISOString(), last_run: new Date().toISOString(), error: null } }; await save(s); });
+    if (backfill && imported.recordings) {
+      const n = imported.tasks.length;
+      const oldest = list.find((r) => r.recording_at || r.created_at);
+      const text = `🎙️ *ייבוא מ־Pocket הושלם*\n${imported.recordings} הקלטות${oldest ? ` מאז ${heDate(local(oldest.recording_at || oldest.created_at).date)}` : ''} · ${n ? `${n} משימות פתוחות ממתינות לאישורך (סטטוס "לאישור")` : 'לא נמצאו משימות פתוחות'}.${n ? '\nאפשר לעבור עליהן כאן בקבוצות, לפי הקלטה או לפי נושא.' : ''}`;
+      await scheduler.deliver(text, { event_type: 'workboard.pocket', to: user, title: 'ייבוא היסטוריה', tasks: imported.tasks.map((t) => t.id), request_id: `pocket-backfill-${user}-${Date.now()}` });
+    }
+    return { backfill, recordings: list.length, imported: imported.recordings, tasks: imported.tasks.length };
+  }
+
+  let timer = null;
+  let polling = false;
+  async function pollAll() {
+    if (polling) return [];
+    polling = true;
+    const results = [];
+    try {
+      for (const [user, key] of apiKeys) {
+        try { results.push({ user, ...(await pollUser(user, key)) }); } catch (error) {
+          console.error(`pocket: polling for ${user} failed: ${error.message}`);
+          results.push({ user, error: error.message });
+          await lock(async () => { const s = await load(); s.poll = { ...s.poll, [user]: { ...s.poll?.[user], last_run: new Date().toISOString(), error: error.message } }; await save(s); }).catch(() => {});
+        }
+      }
+    } finally { polling = false; }
+    return results;
+  }
+
   return {
+    polling: apiKeys.size > 0,
+    poll: pollAll,
+    start() { if (!apiKeys.size) return; setTimeout(pollAll, 30_000).unref?.(); timer = setInterval(pollAll, pollMinutes * 60_000); timer.unref?.(); },
+    stop() { clearInterval(timer); },
     configured: secrets.size > 0,
     /**
      * Handles one delivery. Returns the HTTP answer plus `after` — the WhatsApp message, sent once Pocket has its
