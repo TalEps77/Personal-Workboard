@@ -57,7 +57,7 @@ Workboard does not talk to WhatsApp itself. It posts a JSON message to a webhook
 | `WORKBOARD_WEBHOOK_SECRET` | `HERMES_WEBHOOK_SECRET` | secret | HMAC-SHA256 key for that webhook. |
 | `WORKBOARD_WEBHOOKS` | none | `person\|url\|secret,person\|url\|secret` | Webhooks of the other people. Secrets and URLs must not contain `\|` or `,`. |
 
-The request body is `{ "event_type": "workboard.reminder", "message": "…", … }`, with headers `X-Webhook-Signature` (hex HMAC-SHA256 of the raw body) and `X-Request-Id` (stable per occurrence, so a retry can be de-duplicated). Event types: `workboard.reminder`, `workboard.event`, `workboard.digest`, `workboard.pairing`, `workboard.test`.
+The request body is `{ "event_type": "workboard.reminder", "message": "…", … }`, with headers `X-Webhook-Signature` (hex HMAC-SHA256 of the raw body) and `X-Request-Id` (stable per occurrence, so a retry can be de-duplicated). Event types: `workboard.reminder`, `workboard.event`, `workboard.digest`, `workboard.pairing`, `workboard.test`, `workboard.pocket`.
 
 ### Team board (optional)
 
@@ -69,6 +69,14 @@ Connects each person's work space to a team board ([Workboard for teams](team-bo
 | `WORKBOARD_ORG_TOKEN` | none | token | Sync token of the **default person**. |
 | `WORKBOARD_ORG_TOKENS` | none | `person\|token,…` | Sync tokens of the other people. |
 | `WORKBOARD_ORG_POLL_SECONDS` | `60` | seconds | How often the team board is checked. |
+
+### Pocket recorder (optional)
+
+Meeting action items from a [Pocket](https://heypocketai.com) recorder arrive as proposals awaiting approval ([docs/pocket.md](pocket.md)).
+
+| Variable | Default | Format | Meaning |
+|---|---|---|---|
+| `WORKBOARD_POCKET` | none | `person\|secret,…` | Pocket webhook signing secret per person. Enables `POST /hooks/pocket/<person>`. |
 
 ### Compose variables
 

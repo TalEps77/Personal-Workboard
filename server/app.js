@@ -18,6 +18,7 @@ import { createEventStore } from './events.js';
 import { createAccess, loadPeople, scopeEvents, scopeTasks } from './access.js';
 import { createShoppingStore, DEPTS } from './shopping.js';
 import { createOrgSync } from './org-sync.js';
+import { createPocketIntake, POCKET_MAX_BODY } from './pocket.js';
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8', '.md': 'text/markdown; charset=utf-8', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const send = (res, status, data, headers = {}) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers }); res.end(JSON.stringify(data)); };
@@ -29,6 +30,13 @@ const body = (req) => new Promise((resolve, reject) => {
   req.on('error', reject);
   req.on('data', (chunk) => { text += chunk; if (text.length > 512_000) { reject(fail(413, 'too_large', 'Request too large')); req.destroy(); } });
   req.on('end', () => { try { resolve(text ? JSON.parse(text) : {}); } catch { reject(fail(400, 'invalid_json', 'Invalid JSON')); } });
+});
+const rawBody = (req, limit) => new Promise((resolve, reject) => {
+  const chunks = [];
+  let size = 0;
+  req.on('error', reject);
+  req.on('data', (chunk) => { size += chunk.length; if (size > limit) { reject(fail(413, 'too_large', 'Request too large')); req.destroy(); } else chunks.push(chunk); });
+  req.on('end', () => resolve(Buffer.concat(chunks)));
 });
 const isJson = (req) => (req.headers['content-type'] || '').split(';')[0].trim() === 'application/json';
 const isFile = (path) => { try { return statSync(path).isFile(); } catch { return false; } };
@@ -72,7 +80,7 @@ export function buildVersion(dir = PUBLIC_DIR) {
   return hash.digest('hex').slice(0, 12);
 }
 
-export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people = loadPeople(root), notifier = createNotifiers({ defaultUser: people.defaultUser }), schedulerInterval, agentToken, agentTokens, authDisabled = false, orgOptions = {} } = {}) {
+export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people = loadPeople(root), notifier = createNotifiers({ defaultUser: people.defaultUser }), schedulerInterval, agentToken, agentTokens, authDisabled = false, orgOptions = {}, pocketSpec } = {}) {
   const access = createAccess(people);
   const VERSION = buildVersion(publicDir);
   // Shopping lists belong to the household: everyone who shares the home space. (A declaration, so the SSE filter
@@ -115,6 +123,7 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
   const shopping = createShoppingStore(root, { lock, onChange: broadcast });
   const scheduler = createScheduler({ root, taskStore, schemaStore, eventStore, notifier, access, onEvent: broadcast, interval: schedulerInterval });
   const auth = createAuth({ root, agentToken, ...(agentTokens !== undefined && { agentTokens }), people, disabled: authDisabled, sendCode: (message, user) => notifier.send(message, { event_type: 'workboard.pairing', to: user }) });
+  const pocket = createPocketIntake({ root, taskStore, schemaStore, scheduler, people, ...(pocketSpec !== undefined && { spec: pocketSpec }) });
   const agentTools = createAgentTools({ taskStore, schemaStore, scheduler, eventStore, access, shopping, orgSync });
   /** Everything one request may touch, already narrowed to its person. */
   const ctxFor = (who) => {
@@ -147,6 +156,17 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
 
     if (p === '/api/version') return send(res, 200, { version: VERSION });
     if (p === '/api/health') return send(res, 200, { ok: true, version: VERSION, notifier: scheduler.status(), agentToken: auth.agentConfigured, ...(process.env.WORKBOARD_INSTANCE && { instance: process.env.WORKBOARD_INSTANCE }) });
+
+    // Inbound webhooks: no session — each one checks its sender's signature itself.
+    const hook = m(/^\/hooks\/pocket\/([a-z0-9_-]{1,40})$/);
+    if (hook) {
+      if (method !== 'POST') return send(res, 405, { error: 'Use POST', code: 'method_not_allowed' }, { allow: 'POST' });
+      if (!pocket.configured) return send(res, 404, { error: 'Not found', code: 'not_found' });
+      const result = await pocket.receive(hook[1], await rawBody(req, POCKET_MAX_BODY), req.headers);
+      send(res, result.status, result.body);
+      result.after?.().catch((error) => console.error('pocket: notify failed', error));
+      return undefined;
+    }
 
     // ---- Pairing (the only data endpoints open without a session) ----
     if (p === '/api/auth/status' && method === 'GET') {
@@ -364,6 +384,9 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
     try {
       if (!hostOk(req.headers.host)) return send(res, 421, { error: 'Unknown host', code: 'unknown_host' });
       const url = new URL(req.url, 'http://workboard.local');
+      // Traffic from the public internet (Tailscale Funnel marks it) may only reach the inbound webhooks.
+      if (req.headers['tailscale-funnel-request'] && !url.pathname.startsWith('/hooks/')) return send(res, 404, { error: 'Not found', code: 'not_found' });
+      if (url.pathname.startsWith('/hooks/')) return await route(req, res, url);
       // Writes need a JSON content type (or a bearer token): browsers can't send that cross-site without a CORS
       // preflight, which is never granted — so other web pages can't use a paired device's cookie.
       if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method) && !isJson(req) && !req.headers.authorization) {
@@ -377,7 +400,7 @@ export function createApp({ root = process.cwd(), publicDir = PUBLIC_DIR, people
       return undefined;
     }
   });
-  return { server, scheduler, taskStore, schemaStore, eventStore, auth, shopping, access, orgSync };
+  return { server, scheduler, taskStore, schemaStore, eventStore, auth, shopping, access, orgSync, pocket };
 }
 
 // Backwards-compatible helper used by tests.
