@@ -276,3 +276,24 @@ test('pocket polling: a bad key is reported, not thrown', async () => {
     assert.equal(b.sent.length, 0);
   } finally { await b.close(); }
 });
+
+test('pocket: the API shape (actionItems.actions, per-recording ids) matches webhook items by globalActionItemId', async () => {
+  const at = new Date(Date.now() - 3600_000).toISOString();
+  const apiItem = { id: '1', label: 'תגובה קצרה', payload: { reminder: { title: 'להחזיר תגובה למסמכי הדרישות' } }, assignee: 'Other', context: 'דרישות מהספק.', dueDate: null, globalActionItemId: 'g-1', isCompleted: false, status: 'TODO', priority: 'medium' };
+  const info = extractPocket({ recording: { id: 'r' }, summarizations: { s: { processingStatus: 'completed', v2: { summary: { markdown: 'x' }, actionItems: { actions: [apiItem], version: '3' } } } } });
+  assert.equal(info.items[0].title, 'להחזיר תגובה למסמכי הדרישות', 'the full title, not the short label');
+  assert.equal(info.items[0].assignee, 'גורם אחר');
+  assert.deepEqual(info.items[0].keys, ['g:g-1', 'id:1']);
+
+  // The webhook delivered it first (its own id + the same global id); polling then must not file it again.
+  const recs = [{ id: 'rec_1', title: 'ישיבת צוות', recording_at: at, created_at: at, updated_at: at, duration: 60, summarizations: { s: { processingStatus: 'completed', v2: { summary: { markdown: 'x' }, actionItems: { actions: [apiItem] } } } } }];
+  const { fetchImpl } = fakeApi(recs);
+  const b = await boot({ pocketSpec: `me|${SECRET}`, pocketOptions: { apiSpec: 'me|pk_test', fetchImpl, pauseMs: 0, retryMs: 0 } });
+  try {
+    const hook = recording();
+    hook.summarizations.sum_1.v2.actionItems = [{ id: 'v3_x', title: 'להחזיר תגובה למסמכי הדרישות', globalActionItemId: 'g-1', metadata: { dueDate: null } }];
+    assert.equal((await deliver(b, hook)).body.created.length, 1);
+    await b.app.pocket.poll();
+    assert.equal((await b.call('/api/tasks')).body.items.length, 1);
+  } finally { await b.close(); }
+});
